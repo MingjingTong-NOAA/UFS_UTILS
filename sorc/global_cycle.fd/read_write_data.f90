@@ -49,12 +49,17 @@ MODULE READ_WRITE_DATA
  REAL, ALLOCATABLE, PUBLIC    :: DTREF_GAUS(:,:) !< GSI foundation temperature
                                                  !! increment on the gaussian grid.
 
+ REAL, ALLOCATABLE, PUBLIC    :: TREF_GAUS(:,:)  !< GFS TREF on the gaussian
+                                                 !!grid.
+
  REAL, ALLOCATABLE, PUBLIC    :: STC_INC_GAUS(:,:,:) !< GSI soil temperature increments 
                                                      !! on the gaussian grid. 
 
  PUBLIC :: READ_DATA
  PUBLIC :: READ_GSI_DATA
  PUBLIC :: READ_LAT_LON_OROG
+ PUBLIC :: READ_SFCANL_TREF_DATA
+ PUBLIC :: READ_SFCANL_TREF_TILE
  PUBLIC :: WRITE_DATA
  public :: read_tf_clim_grb,get_tf_clm_dim
  public :: read_salclm_gfs_nc,get_dim_nc
@@ -949,6 +954,142 @@ MODULE READ_WRITE_DATA
  ERROR = NF90_CLOSE(NCID)
 
  END SUBROUTINE READ_GSI_DATA
+
+ !> Read file from the GFS SFCANL file containing the foundation temperature
+ !! and mask.
+ !!
+ !! The data is in NetCDF and on a gaussian grid. The grid contains two
+ !! extra rows for each pole. The interpolation from gaussian to
+ !! native grid assumes no pole points, so these are removed.
+ !!
+ !! @param[in] SFCANL_FILE Path/name of the SFCANL file to be read.
+ !! @author Mingjing Tong NOAA/GFDL
+ SUBROUTINE READ_SFCANL_TREF_DATA(SFCANL_FILE)
+
+ IMPLICIT NONE
+
+ CHARACTER(LEN=*), INTENT(IN)     :: SFCANL_FILE
+
+ INTEGER                          :: ERROR, ID_DIM, NCID
+ INTEGER                          :: ID_VAR, J
+
+ INTEGER(KIND=1), ALLOCATABLE     :: IDUMMY(:,:)
+
+ REAL(KIND=8), ALLOCATABLE        :: DUMMY(:,:)
+
+ PRINT*
+ PRINT*, "READ INPUT SFCANL DATA FROM: "//TRIM(SFCANL_FILE)
+
+ ERROR=NF90_OPEN(TRIM(SFCANL_FILE),NF90_NOWRITE,NCID)
+ CALL NETCDF_ERR(ERROR, 'OPENING FILE: '//TRIM(SFCANL_FILE) )
+
+ ERROR=NF90_INQ_DIMID(NCID, 'grid_yt', ID_DIM)
+ CALL NETCDF_ERR(ERROR, 'READING grid_yt' )
+ ERROR=NF90_INQUIRE_DIMENSION(NCID,ID_DIM,LEN=JDIM_GAUS)
+ CALL NETCDF_ERR(ERROR, 'READING grid_yt' )
+ JDIM_GAUS = JDIM_GAUS - 2  ! WILL IGNORE POLE POINTS
+
+ ERROR=NF90_INQ_DIMID(NCID, 'grid_xt', ID_DIM)
+ CALL NETCDF_ERR(ERROR, 'READING grid_xt' )
+ ERROR=NF90_INQUIRE_DIMENSION(NCID,ID_DIM,LEN=IDIM_GAUS)
+ CALL NETCDF_ERR(ERROR, 'READING grid_xt' )
+
+ ALLOCATE(DUMMY(IDIM_GAUS,JDIM_GAUS+2))
+ ALLOCATE(TREF_GAUS(IDIM_GAUS,JDIM_GAUS))
+
+ ERROR=NF90_INQ_VARID(NCID, "tref", ID_VAR)
+ CALL NETCDF_ERR(ERROR, 'READING tref ID' )
+ ERROR=NF90_GET_VAR(NCID, ID_VAR, DUMMY)
+ CALL NETCDF_ERR(ERROR, 'READING tref' )
+
+ ALLOCATE(IDUMMY(IDIM_GAUS,JDIM_GAUS+2))
+ ALLOCATE(SLMSK_GAUS(IDIM_GAUS,JDIM_GAUS))
+
+ ERROR=NF90_INQ_VARID(NCID, "land", ID_VAR)
+ CALL NETCDF_ERR(ERROR, 'READING land ID' )
+ ERROR=NF90_GET_VAR(NCID, ID_VAR, IDUMMY)
+ CALL NETCDF_ERR(ERROR, 'READING land' )
+
+! REMOVE POLE POINTS. and flip latitude
+
+ DO J = 1, JDIM_GAUS
+   SLMSK_GAUS(:,J) = IDUMMY(:,JDIM_GAUS+2-J)
+   TREF_GAUS(:,J) = DUMMY(:,JDIM_GAUS+2-J)
+ ENDDO
+
+ DEALLOCATE(DUMMY)
+ DEALLOCATE(IDUMMY)
+
+ ERROR = NF90_CLOSE(NCID)
+
+ END SUBROUTINE READ_SFCANL_TREF_DATA
+
+ !> Read file from the GFS SFCANL tile file containing the foundation i
+ !! temperature and mask.
+ !!
+ !! The data is in NetCDF and on a a single cubed-sphere tile. 
+ !!
+ !! @param[in] LENSFC Total number of points on a tile.
+ !! @param[out] TREF_TILE foundation temperature
+ !! @author Mingjing Tong NOAA/GFDL
+ SUBROUTINE READ_SFCANL_TREF_TILE(LENSFC,TREF_TILE)
+
+ USE MPI
+
+ IMPLICIT NONE
+
+ INTEGER, INTENT(IN)       :: LENSFC
+ REAL, INTENT(OUT)         :: TREF_TILE(LENSFC)
+
+ CHARACTER(LEN=50)         :: FNTREF
+ CHARACTER(LEN=3)          :: RANKCH
+
+ INTEGER                   :: ERROR, NCID, MYRANK
+ INTEGER                   :: IDIM, JDIM, ID_DIM
+ INTEGER                   :: ID_VAR, IERR
+
+ REAL(KIND=8), ALLOCATABLE :: DUMMY(:,:)
+
+ CALL MPI_COMM_RANK(MPI_COMM_WORLD, MYRANK, ERROR)
+
+ WRITE(RANKCH, '(I3.3)') (MYRANK+1)
+
+ FNTREF = "./fntref." // RANKCH
+
+ PRINT*
+ PRINT*, "READ INPUT SFC DATA FROM: "//TRIM(FNTREF)
+
+ ERROR=NF90_OPEN(TRIM(FNTREF),NF90_NOWRITE,NCID)
+ CALL NETCDF_ERR(ERROR, 'OPENING FILE: '//TRIM(FNTREF) )
+
+ ERROR=NF90_INQ_DIMID(NCID, 'xaxis_1', ID_DIM)
+ CALL NETCDF_ERR(ERROR, 'READING xaxis_1' )
+ ERROR=NF90_INQUIRE_DIMENSION(NCID,ID_DIM,LEN=IDIM)
+ CALL NETCDF_ERR(ERROR, 'READING xaxis_1' )
+
+ ERROR=NF90_INQ_DIMID(NCID, 'yaxis_1', ID_DIM)
+ CALL NETCDF_ERR(ERROR, 'READING yaxis_1' )
+ ERROR=NF90_INQUIRE_DIMENSION(NCID,ID_DIM,LEN=JDIM)
+ CALL NETCDF_ERR(ERROR, 'READING yaxis_1' )
+
+ IF ((IDIM*JDIM) /= LENSFC) THEN
+   PRINT*,'FATAL ERROR: DIMENSIONS WRONG.'
+   CALL MPI_ABORT(MPI_COMM_WORLD, 88, IERR)
+ ENDIF
+
+ ALLOCATE(DUMMY(IDIM,JDIM))
+
+ ERROR=NF90_INQ_VARID(NCID, "tref", ID_VAR)
+ CALL NETCDF_ERR(ERROR, 'READING tref ID' )
+ ERROR=NF90_GET_VAR(NCID, ID_VAR, dummy)
+ CALL NETCDF_ERR(ERROR, 'READING tref' )
+ TREF_TILE = RESHAPE(DUMMY, (/LENSFC/))
+
+ DEALLOCATE(DUMMY)
+
+ ERROR = NF90_CLOSE(NCID)
+
+ END SUBROUTINE READ_SFCANL_TREF_TILE
 
  !> Read the first guess surface records and nsst records (if
  !! selected) for a single cubed-sphere tile.
