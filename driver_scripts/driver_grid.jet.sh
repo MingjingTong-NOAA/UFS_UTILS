@@ -5,10 +5,10 @@
 #SBATCH --open-mode=truncate
 #SBATCH -o log.fv3_grid_driver
 #SBATCH -e log.fv3_grid_driver
-#SBATCH --nodes=1 --ntasks-per-node=24
+#SBATCH --nodes=3 --ntasks-per-node=10
 #SBATCH --partition=xjet
-#SBATCH -q batch
-#SBATCH -t 00:10:00
+#SBATCH -q debug
+#SBATCH -t 00:30:00
 
 #-----------------------------------------------------------------------
 # Driver script to create a cubic-sphere based model grid on Jet.
@@ -84,14 +84,9 @@ export vegsoilt_frac='.false.'  # When true, outputs percent of each
                                # outputs the dominant category. A
                                # Fortran logical, so include the dots.
 
-export veg_type_src="modis.igbp.0.05" #  Vegetation type data.
+export veg_type_src="viirs.v3.igbp.30s" #  Vegetation type data.
                                 # For viirs-based vegetation type data, set to:
-                                # 1) "viirs.igbp.0.1" for global 0.10-deg data
-                                # 2) "viirs.igbp.0.05" for global 0.05-deg data
-                                # 3) "viirs.igbp.0.03" for global 0.03-deg data
-                                # 4) "viirs.igbp.conus.30s" for CONUS 30s data
-                                # 5) "viirs.igbp.nh.30s" for NH 30s data
-                                # 6) "viirs.igbp.30s" for global 30s data
+                                # 1) "viirs.v3.igbp.30s" for global 30s data
                                 # For the modis-based data, set to:
                                 # 1) "modis.igbp.0.05" for global 0.05-deg data
                                 # 2) "modis.igbp.0.03" for global 0.03-deg data
@@ -99,20 +94,26 @@ export veg_type_src="modis.igbp.0.05" #  Vegetation type data.
                                 # 4) "modis.igbp.nh.30s" for N Hemis 30s data
                                 # 5) "modis.igbp.30s" for global 30s data
 
-export soil_type_src="statsgo.0.05" # Soil type data.
+export soil_type_src="bnu.v3.30s" # Soil type data.
+                                # For Beijing Normal Univ. data, set to:
+                                # 1) "bnu.v3.30s" for global 30s data.
                                 # For STATSGO soil type data, set to:
                                 # 1) "statsgo.0.05" for global 0.05-deg data
                                 # 2) "statsgo.0.03" for global 0.03-deg data
                                 # 3) "statsgo.conus.30s" for CONUS 30s data
                                 # 4) "statsgo.nh.30s" for NH 30s data
                                 # 5) "statsgo.30s" for global 30s data
-                                # For Beijing Normal Univ. data, set to:
-                                # 1) "bnu.30s" for global 30s data.
+
+# choose dataset sources for lakefrac & lakedepth so that lake_data_srce=LakeFrac_LakeDepth; 
+# available options are 'MODISP_GLDBV3', 'MODISP_GLOBATHY', 'VIIRS_GLDBV3', 'VIIRS_GLOBATHY' & 'GLDBV3'
+export lake_data_srce=MODISP_GLDBV3 
 
 if [ $gtype = uniform ]; then
   export res=96
-  export add_lake=false        # Add lake frac and depth to orography data.
-  export lake_cutoff=0.20      # lake frac < lake_cutoff ignored when add_lake=T
+  export add_lake=true         # Add lake frac and depth to orography data.
+  export lake_cutoff=0.50      # return 0 if lake_frac <  lake_cutoff & add_lake=T
+  export binary_lake=1         # return 1 if lake_frac >= lake_cutoff & add_lake=T
+  export ocn=${ocn:-"025"}     # use one of  "025", "050", "100", "500". Cannot be empty
 elif [ $gtype = stretch ]; then
   export res=96
   export stretch_fac=1.5       # Stretching factor for the grid
@@ -156,7 +157,6 @@ fi
 export home_dir=$SLURM_SUBMIT_DIR/..
 export TEMP_DIR=/lfs4/HFIP/emcda/$LOGNAME/stmp/fv3_grid.$gtype
 export out_dir=/lfs4/HFIP/emcda/$LOGNAME/stmp/my_grids
-
 #-----------------------------------------------------------------------
 # Should not need to change anything below here.
 #-----------------------------------------------------------------------

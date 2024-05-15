@@ -117,7 +117,7 @@
 !! @author George Gayno
  subroutine atmosphere_driver(localpet)
 
- use mpi
+ use mpi_f08
 
  implicit none
 
@@ -1260,7 +1260,7 @@
 
  print*
  print*,"OPEN VERTICAL COORD FILE: ", trim(vcoord_file_target_grid)
- open(14, file=trim(vcoord_file_target_grid), form='formatted', iostat=istat)
+ open(14, file=trim(vcoord_file_target_grid), form='formatted', iostat=istat, action='read')
  if (istat /= 0) then
    call error_handler("OPENING VERTICAL COORD FILE", istat)
  endif
@@ -1761,7 +1761,7 @@
 !!
 !! @author Mark Iredell @date 92-10-31
  SUBROUTINE VINTG
- use mpi
+ use mpi_f08
 
  IMPLICIT NONE
 

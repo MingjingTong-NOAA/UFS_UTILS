@@ -240,11 +240,11 @@ Program inputs and outputs
 
       * The "grid" files (CRES_grid.tile#.nc) containing the geo-reference records for the grid - (NetCDF).  Created by the make_hgrid or regional_esg_grid programs.
       * Global 30-arc-second University of Maryland land cover data.  Used to create the land-sea mask.
-             * landcover30.fixed (unformatted binary). Located here `./fix/fix_orog <https://noaa-ufs-srw-pds.s3.amazonaws.com/index.html#fix/fix_orog/>`_.
+             * landcover.umd.30s.nc (NetCDF). Located here `./fix/fix_orog <https://noaa-ufs-srw-pds.s3.amazonaws.com/index.html#fix/fix_orog/>`_.
       * Global 30-arc-second USGS GMTED2010 orography data.
-             * gmted2010.30sec.int (unformatted binary). Located here `./fix/fix_orog <https://noaa-ufs-srw-pds.s3.amazonaws.com/index.html#fix/fix_orog/>`_.
+             * topography.gmted2010.30s.nc (NetCDF). Located here `./fix/fix_orog <https://noaa-ufs-srw-pds.s3.amazonaws.com/index.html#fix/fix_orog/>`_.
       * 30-arc-second RAMP Antarctic terrain data (Radarsat Antarctic Mapping Project)
-             * thirty.second.antarctic.new.bin (unformatted binary). Located here `./fix/fix_orog <https://noaa-ufs-srw-pds.s3.amazonaws.com/index.html#fix/fix_orog/>`_.
+             * topography.antarctica.ramp.30s.nc (NetCDF). Located here `./fix/fix_orog <https://noaa-ufs-srw-pds.s3.amazonaws.com/index.html#fix/fix_orog/>`_.
 
 **Output data:**  
 
@@ -375,8 +375,13 @@ Program inputs and outputs
 
       * grid file - the "grid" file from the make_hgrid or regional_esg programs  - CRES_grid.tile#.nc - (NetCDF)
       * orography file - the orography file including the 'inland' flag record from the inland program - oro.CRES.tile#.nc (NetCDF)
-      * lake status code file - GlobalLakeStatus.dat (located in `./fix/fix_orog <https://noaa-ufs-srw-pds.s3.amazonaws.com/index.html#fix/fix_orog/>`_). See GlobalLakeStatus.txt for the defintion of each code.
-      * lake depth file - GlobalLakeDepth.dat (located in `./fix/fix_orog <https://noaa-ufs-srw-pds.s3.amazonaws.com/index.html#fix/fix_orog/>`_). See GlobalLakeDepth.txt for a description of this file.
+      * lake status code file - One of the following files. (located in `./fix/fix_orog <https://noaa-ufs-srw-pds.s3.amazonaws.com/index.html#fix/fix_orog/>`_). See GlobalLakeStatus.txt for a description of the file format.
+          * GlobalLakeStatus_MOSISp.dat
+          * GlobalLakeStatus_GLDBv3release.dat
+          * GlobalLakeStatus_VIIRS.dat
+      * lake depth file - One of the following files. (located in `./fix/fix_orog <https://noaa-ufs-srw-pds.s3.amazonaws.com/index.html#fix/fix_orog/>`_). See GlobalLakeDepth.txt for a description of this file.
+          * GlobalLakeDepth_GLDBv3release.dat
+          * GlobalLakeDepth_GLOBathy.dat
 
 **Output data:**
 
@@ -528,7 +533,7 @@ The surface climatological data is located here `./fix/fix_sfc_climo <https://no
 
       * Global 1-degree fractional coverage strong/weak zenith angle albedo - facsf.1.0.nc
       * Global 0.05-degree maximum snow albedo - maximum_snow_albedo.0.05.nc
-      * Global 2.6 x 1.5-degree soil substrate temperature - substrate_temperature.2.6x1.5.nc
+      * Global 0.5-degree soil substrate temperature - substrate_temperature.gfs.0.5.nc
       * Global 0.05-degree four component monthly snow-free albedo - snowfree_albedo.4comp.0.05.nc
       * Global 1.0-degree categorical slope type - slope_type.1.0.nc
       * Global 0.05-degree CLM soil color (Lawrence and Chase, 2007 JGR) - soil_color.clm.0.05.nc
@@ -539,19 +544,14 @@ The surface climatological data is located here `./fix/fix_sfc_climo <https://no
              * N Hemis 30 sec - soil_type.statsgo.nh.30s.nc
              * Global 30 sec - soil_type.statsgo.30s.nc
       * Categorical BNU soil type
-             * Global 30-second - soil_type.bnu.30s.nc
+             * Global 30-second - soil_type.bnu.v3.30s.nc
       * Categorical IGBP vegetation type
              * MODIS-based global 0.05-degree - vegetation_type.modis.igbp.0.05.nc
              * MODIS-based global 0.03-degree - vegetation_type.modis.igbp.0.03.nc
              * MODIS-based CONUS 30 sec - vegetation_type.modis.igbp.conus.30s.nc
              * MODIS-based N Hemis 30 sec - vegetation_type.modis.igbp.nh.30s.nc
              * MODIS-based global 30 sec - vegetation_type.modis.igbp.30s.nc
-             * NESDIS VIIRS-based global 0.10-degree - vegetation_type.viirs.igbp.0.1.nc
-             * NESDIS VIIRS-based global 0.05-degree - vegetation_type.viirs.igbp.0.05.nc
-             * NESDIS VIIRS-based global 0.03-degree - vegetation_type.viirs.igbp.0.03.nc
-             * NESDIS VIIRS-based CONUS 30-second - vegetation_type.viirs.igbp.conus.30s.nc
-             * NESDIS VIIRS-based N HEMIS 30-second - vegetation_type.viirs.igbp.nh.30s.nc
-             * NESDIS VIIRS-based global 30-second - vegetation_type.viirs.igbp.30s.nc
+             * NESDIS VIIRS-based global 30-second - vegetation_type.viirs.v3.igbp.30s.nc
       * Global 0.144-degree monthly vegetation greenness in percent - vegetation_greenness.0.144.nc
 
 The files that define the model grid. All NetCDF.
@@ -665,3 +665,73 @@ Run script
 ----------
 
 To run, use the machine-dependent script under ./util/weight_gen
+
+***************************************************
+UFS_UTILS utilities
+***************************************************
+
+gdas_init
+=========
+
+Introduction
+------------
+
+The gdas_init utility is used to create coldstart initial conditions for global cycled and forecast-only experiments using the chgres_cube program.  It has two components: one that pulls the input data required by chgres_cube from HPSS, and one that runs chgres_cube. The utility is only supported on machines with access to HPSS:
+
+     * Hera
+     * Jet
+     * WCOSS2
+     * S4 (Only the chgres_cube step is supported, not the data pull step.)
+
+Location
+--------
+
+Find it here: ./util/gdas_init
+
+Build UFS_UTILS and set 'fixed' directories
+-------------------------------------------
+
+Invoke the build script from the root directory: 
+
+::
+
+  ./build_all.sh
+
+Set the 'fixed' directories using the script in the './fix' subdirectory (where $MACHINE is 'hera', 'jet', 'wcoss2', or 's4'):
+
+::
+
+  ./link_fixdirs.sh emc $MACHINE
+
+Configure for your experiment
+-----------------------------
+
+Edit the variables in the 'config' file for your experiment:
+
+     * **EXTRACT_DIR**  - Directory where data extracted from HPSS is stored.
+     * **EXTRACT_DATA** - Set to 'yes' to extract data from HPSS. If data has been extracted and is located in EXTRACT_DIR, set to 'no'. On 's4' this step can't be run. Instead, the data must be pulled from another machine.
+     * **RUN_CHGRES**   - To run chgres, set to 'yes'.  To extract data only, set to 'no'.
+     * **yy/mm/dd/hh**  - The year/month/day/hour of your desired experiment. Use a four digit year and two digits for month/day/hour. **NOTE:** *The standard build of chgres_cube does NOT support experiments prior to June 12, 2019. To coldstart an experiment prior to these dates, contact a repository manager for assistance.*
+     * **LEVS**         - Number of hybrid levels plus 1.  To run with 127 levels, set LEVS to 128.
+     * **CRES_HIRES**   - Resolution of the hires component of your experiment. Example: C768.
+     * **CRES_ENKF**    - Resolution of the enkf component of the experiments.
+     * **UFS_DIR**      - Location of your cloned UFS_UTILS repository.
+     * **OUTDIR**       - Directory where the coldstart data output from chgres is stored.
+     * **CDUMP**        - When 'gdas', will process gdas and enkf members. When 'gfs', will process gfs member for running free forecast only.
+     * **use_v16retro** - When 'yes', use v16 retrospective parallel data. The retrospective parallel tarballs can be missing or incomplete. So this option may not always work. Contact a UFS_UTILS repository manager if you encounter problems.
+
+Note: This utility selects the ocean resolution in the set_fixed_files.sh script using a default based on the user-selected CRES value. For example, for a cycled experiment with a CRES_HIRES/CRES_ENKF of C384/C192, the ocean resolution defaults to 0.25/0.50-degree. To choose another ocean resolution, the user will need to manually modify the set_fixed_files.sh script.
+
+
+Kick off the utility
+--------------------
+
+Submit the driver script (where $MACHINE is 'hera', 'jet', 'wcoss2', or 's4')
+
+::
+
+  ./driver.$MACHINE.sh 
+
+The standard output will be placed in log files in the current directory. 
+
+The converted output will be found in $OUTDIR, including the needed abias and radstat initial condition files (if CDUMP=gdas). The files will be in the needed directory structure for the global-workflow system, therefore a user can move the contents of their $OUTDIR directly into their $ROTDIR.
