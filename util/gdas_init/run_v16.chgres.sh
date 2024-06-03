@@ -15,6 +15,7 @@ MEMBER=$1
 FIX_FV3=$UFS_DIR/fix
 FIX_ORO=${FIX_FV3}/orog
 FIX_AM=${FIX_FV3}/am
+GDAS_INIT_DIR=${GDAS_INIT_DIR:-$UFS_DIR/util/gdas_init}
 
 WORKDIR=${WORKDIR:-$OUTDIR/work.${MEMBER}}
 
@@ -71,7 +72,7 @@ cat << EOF > fort.41
 /
 EOF
 
-$APRUN $EXEC_DIR/chgres_cube
+$APRUN ${EXEC_DIR:-$UFS_DIR/exec}/chgres_cube
 rc=$?
 
 if [ $rc != 0 ]; then
