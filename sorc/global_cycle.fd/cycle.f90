@@ -74,8 +74,6 @@
 !!  -DO_SFCCYCLE   Call sfccycle routine to update surface fields
 !!  -DO_LNDINC     Read in land increment files, and add increments to
 !!                 relevant states.
-!!  -DO_TREF_TILE  Use TREF analysis on TILE for skin temperature
-!!  -PERTURB_TREF  Add ensemble perturbation to GFS TREF
 !!                 NOTE: We do not have a GSI snow analysis
 !!  -DO_SOI_INC_GSI     Do land increments to soil states on Gaussian grids.
 !!  -DO_SOI_INC_JEDI    Do land increments to soil states on cubed-sphere tiles.
@@ -100,6 +98,8 @@
 !!                 (max_tasks-1).
 !!  -NST_FILE       path/name of the gaussian GSI file which contains NSST
 !!                 TREF increments.
+!!  -USE_TREF       Use TREF analysis for skin temperature
+!!  -PERTURB_TSFC  Add ensemble perturbation to GFS SST
 !!
 !!  -2005-02-03:  Iredell   for global_analysis
 !!  -2014-11-30:  xuli      add nst_anl
@@ -123,7 +123,7 @@
  INTEGER :: NPROCS, MYRANK, NUM_THREADS, NUM_PARTHDS, MAX_TASKS
  REAL    :: FH, DELTSFC, ZSEA1, ZSEA2
  LOGICAL :: USE_UFO, DO_NSST, DO_LNDINC, DO_SFCCYCLE, FRAC_GRID
- LOGICAL :: DO_TREF_TILE, PERTURB_TREF
+ LOGICAL :: USE_TREF, PERTURB_TSFC
  INTEGER :: orig_group, new_group, new_comm, k
  integer,dimension(:),allocatable:: new_group_members
 !
@@ -131,7 +131,7 @@
                   DELTSFC,IALB,USE_UFO,DONST,             &
                   DO_SFCCYCLE,ISOT,IVEGSRC,ZSEA1_MM,      &
                   ZSEA2_MM, MAX_TASKS, DO_LNDINC,         &
-                  FRAC_GRID, DO_TREF_TILE, PERTURB_TREF
+                  FRAC_GRID, USE_TREF, PERTURB_TSFC
 !
  DATA IDIM,JDIM,LSOIL/96,96,4/
  DATA IY,IM,ID,IH,FH/1997,8,2,0,0./
@@ -155,9 +155,9 @@
  DONST   = "NO"
  DO_LNDINC   = .FALSE.
  DO_SFCCYCLE = .TRUE.
- DO_TREF_TILE = .FALSE.
- PERTURB_TREF = .FALSE.
  FRAC_GRID = .FALSE.
+ USE_TREF = .FALSE.
+ PERTURB_TSFC = .FALSE.
 
  PRINT*
  PRINT*,"READ NAMCYC NAMELIST."
@@ -183,7 +183,7 @@
    DO_NSST=.FALSE.
  ENDIF
 
- if (PERTURB_TREF) then
+ if (PERTURB_TSFC) then
    call MPI_COMM_GROUP(MPI_COMM_WORLD,orig_group,IERR)
 
    allocate(new_group_members(MAX_TASKS))
@@ -203,8 +203,9 @@
  CALL SFCDRV(LUGB,IDIM,JDIM,LENSFC,LSOIL,DELTSFC,  &
              IY,IM,ID,IH,FH,IALB,                  &
              USE_UFO,DO_NSST,DO_SFCCYCLE,DO_LNDINC, &
-             FRAC_GRID,ZSEA1,ZSEA2,ISOT,IVEGSRC,MYRANK, &
-             DO_TREF_TILE,PERTURB_TREF,MAX_TASKS,new_comm)
+             FRAC_GRID,USE_TREF,PERTURB_TSFC, &
+             ZSEA1,ZSEA2,ISOT,IVEGSRC,MYRANK, &
+             MAX_TASKS,new_comm)
  
  PRINT*
  PRINT*,'CYCLE PROGRAM COMPLETED NORMALLY ON RANK: ', MYRANK
@@ -320,9 +321,9 @@
  !! @param[in] DO_SFCCYCLE Call sfccycle routine to update surface fields
  !! @param[in] DO_LNDINC Read in land increment files, and add increments to
  !!            requested states.
- !! @param[in] DO_TREF_TILE  Use TREF analysis on TILE for skin temperature
- !! @param[in] PERTURB_TREF Add perturbation to GFS TREF
  !! @param[in] FRAC_GRID When true, run with fractional grid.
+ !! @param[in] USE_TREF Use TREF analysis on TILE for skin temperature
+ !! @param[in] PERTURB_TSFC Add perturbation to GFS surface temperature
  !! @param[in] ZSEA1 When running NSST model, this is the lower bound
  !!            of depth of sea temperature.  In whole mm.
  !! @param[in] ZSEA2 When running NSST model, this is the upper bound
@@ -334,8 +335,9 @@
  SUBROUTINE SFCDRV(LUGB, IDIM,JDIM,LENSFC,LSOIL,DELTSFC,  &
                    IY,IM,ID,IH,FH,IALB,                  &
                    USE_UFO,DO_NSST,DO_SFCCYCLE,DO_LNDINC,&
-                   FRAC_GRID,ZSEA1,ZSEA2,ISOT,IVEGSRC,MYRANK, &
-                   DO_TREF_TILE,PERTURB_TREF,nmem,new_comm)
+                   FRAC_GRID,USE_TREF,PERTURB_TSFC, &
+                   ZSEA1,ZSEA2,ISOT,IVEGSRC,MYRANK, &
+                   nmem,new_comm)
 !
  USE READ_WRITE_DATA
  use machine
@@ -356,8 +358,8 @@
  INTEGER, INTENT(IN) :: nmem, new_comm
 
  LOGICAL, INTENT(IN) :: USE_UFO, DO_NSST,DO_SFCCYCLE
- LOGICAL, INTENT(IN) :: DO_TREF_TILE, PERTURB_TREF
  LOGICAL, INTENT(IN) :: DO_LNDINC, FRAC_GRID
+ LOGICAL, INTENT(IN) :: USE_TREF, PERTURB_TSFC
  
  REAL, INTENT(IN)    :: FH, DELTSFC, ZSEA1, ZSEA2
 
@@ -409,8 +411,8 @@
  INTEGER, ALLOCATABLE :: LANDINC_MASK_FG(:), LANDINC_MASK(:)
  REAL, ALLOCATABLE   :: SND_BCK(:), SND_INC(:), SWE_BCK(:)
  REAL(KIND=KIND_IO8), ALLOCATABLE :: SLMASKL(:), SLMASKW(:), LANDFRAC(:)
- REAL, ALLOCATABLE   :: TREF_TILE(:), TREFMEAN(:)
- REAL                :: TREFPERT(LENSFC)
+ REAL, ALLOCATABLE   :: TSFC_TILE(:), TSFCMEAN(:)
+ REAL                :: TSFCPERT(LENSFC)
 
  TYPE(NSST_DATA)     :: NSST
  real, dimension(idim,jdim) :: tf_clm,tf_trd,sal_clm
@@ -548,15 +550,15 @@ ENDIF
                 ABSFCS=ABSFCS,T2M=T2M      ,Q2M=Q2M      ,SLMASK=SLMASK,  &
                 ZSOIL=ZSOIL,   NSST=NSST)
   
- if (PERTURB_TREF) then
-   allocate(TREFMEAN(LENSFC))
-   CALL MPI_ALLREDUCE(TSFFCS,TREFMEAN,LENSFC,MPI_DOUBLE_PRECISION,MPI_SUM,new_comm,IERR)
+ if (PERTURB_TSFC) then
+   allocate(TSFCMEAN(LENSFC))
+   CALL MPI_ALLREDUCE(TSFFCS,TSFCMEAN,LENSFC,MPI_DOUBLE_PRECISION,MPI_SUM,new_comm,IERR)
    rnmem = 1.0 / nmem
-   TREFMEAN = TREFMEAN * rnmem
-   TREFPERT = TSFFCS - TREFMEAN
-   deallocate(TREFMEAN)
+   TSFCMEAN = TSFCMEAN * rnmem
+   TSFCPERT = TSFFCS - TSFCMEAN
+   deallocate(TSFCMEAN)
  else
-   TREFPERT = 0.0
+   TSFCPERT = 0.0
  endif
 
  IF (FRAC_GRID .AND. .NOT. IS_NOAHMP) THEN
@@ -725,7 +727,7 @@ ENDIF
  ELSE
    IF (SFCANL_FILE /= "NULL") THEN
      PRINT*
-     PRINT*,"USE TREF in GFS SFCANL FILE"
+     PRINT*,"USE GFS gaussian SFCANL FILE"
 !
 !    Get tf climatology at the time
 !
@@ -739,21 +741,23 @@ ENDIF
 !
 !    read tf analysis
 !
-     CALL READ_SFCANL_TREF_DATA(SFCANL_FILE)
+     CALL READ_SFCANL_DATA(SFCANL_FILE,USE_TREF)
 !
-!    update surface temperature using TREF
+!    update surface temperature from data on gaussian grid
 !
-     CALL USE_TREF(RLA,RLO,SLIFCS,TSFFCS,SITFCS,SICFCS,STCFCS, &
-                   LENSFC,LSOIL,IDIM,JDIM,tf_clm_tile,sal_clm_tile)
+     CALL UPDATE_TSFC(RLA,RLO,SLIFCS,TSFFCS,SITFCS,SICFCS,STCFCS, &
+                      LENSFC,LSOIL,IDIM,JDIM,tf_clm_tile,sal_clm_tile)
 
-   ELSEIF (DO_TREF_TILE) THEN
+   ELSE
      PRINT*
-     PRINT*,"USE TREF in GFS SFCANL FILE on tile"
-     ALLOCATE(TREF_TILE(LENSFC))
-     CALL READ_SFCANL_TREF_TILE(LENSFC,TREF_TILE)
-
-     CALL USE_TREF_TILE(SLIFCS,TREF_TILE,TSFFCS,SITFCS,STCFCS, &
-                        LENSFC,LSOIL,TREFPERT) 
+     PRINT*,"USE GFS SFCANL FILE on tile"
+     ALLOCATE(TSFC_TILE(LENSFC))
+     CALL READ_SFCANL_TILE_DATA(LENSFC,USE_TREF,TSFC_TILE)
+     PRINT*,"UPDATE TSFFCS", maxval(TSFFCS), minval(TSFFCS)
+     CALL UPDATE_TSFC_TILE(SLIFCS,TSFC_TILE,TSFFCS,SITFCS,STCFCS, &
+                           LENSFC,LSOIL,TSFCPERT,MYRANK) 
+     PRINT*,"AFTER ", maxval(TSFFCS), minval(TSFFCS)
+     
    ENDIF
  ENDIF
 
@@ -958,8 +962,8 @@ ENDIF
    DEALLOCATE(NSST%ZM)
    DEALLOCATE(SLIFCS_FG)
    DEALLOCATE(SICFCS_FG)
- ELSEIF (DO_TREF_TILE) THEN
-   DEALLOCATE(TREF_TILE)
+ ELSE
+   IF (ALLOCATED(TSFC_TILE)) DEALLOCATE(TSFC_TILE)
  ENDIF
 
  RETURN
@@ -1434,14 +1438,14 @@ ENDIF
  !! @param[in] sal_clm_tile Climatological salinity on the cubed-sphere tile.
  !!
  !! @author Mingjing Tong
- SUBROUTINE USE_TREF(RLA,RLO,SLMSK_TILE,SKINT_TILE,SICET_TILE,  &
-                     sice_tile,SOILT_TILE,LENSFC,LSOIL,IDIM,JDIM, &
-                     tf_clm_tile,sal_clm_tile)
+ SUBROUTINE UPDATE_TSFC(RLA,RLO,SLMSK_TILE,SKINT_TILE,SICET_TILE,  &
+                        sice_tile,SOILT_TILE,LENSFC,LSOIL,IDIM,JDIM, &
+                        tf_clm_tile,sal_clm_tile)
 
  USE UTILS
  USE GDSWZD_MOD
  USE READ_WRITE_DATA, ONLY : IDIM_GAUS, JDIM_GAUS, &
-                             SLMSK_GAUS, TREF_GAUS, READ_SFCANL_TREF_DATA
+                             SLMSK_GAUS, TSFC_GAUS, READ_SFCANL_DATA
 
  USE MPI
 
@@ -1472,7 +1476,7 @@ ENDIF
 
  real                     :: tfreez
  REAL                     :: WSUM,tf_ice
- REAL                     :: FILL, GAUS_RES_KM, TREF
+ REAL                     :: FILL, GAUS_RES_KM, TSFC
  REAL, ALLOCATABLE        :: XPTS(:), YPTS(:), LATS(:), LONS(:)
  REAL, ALLOCATABLE        :: DUM2D(:,:), LATS_RAD(:), LONS_RAD(:)
  REAL, ALLOCATABLE        :: AGRID(:,:,:), S2C(:,:,:)
@@ -1493,7 +1497,7 @@ ENDIF
  KGDS_GAUS(20) = 255        ! OCT 5  - NOT USED, SET TO 255
 
  PRINT*
- PRINT*,'USE TREF ON GAUSSIAN GRID'
+ PRINT*,'USE TREF or TSEA ON GAUSSIAN GRID'
 
 !----------------------------------------------------------------------
 ! CALL GDSWZD TO COMPUTE THE LAT/LON OF EACH GSI GAUSSIAN GRID POINT.
@@ -1579,7 +1583,7 @@ ENDIF
  nice = 0
  nland = 0
 !----------------------------------------------------------------------
-! TREF WILL BE OUTPUT.  INITIALIZE TO ZERO.
+! TSFC WILL BE OUTPUT.  INITIALIZE TO ZERO.
 !----------------------------------------------------------------------
 
  IJ_LOOP : DO IJ = 1, LENSFC
@@ -1638,36 +1642,36 @@ ENDIF
        SLMSK_GAUS(IGAUSP1,JGAUSP1) == 0 .OR. &
        SLMSK_GAUS(IGAUS,JGAUSP1)   == 0) THEN
 
-     TREF = 0.0
+     TSFC = 0.0
      WSUM  = 0.0
 
      IF (SLMSK_GAUS(IGAUS,JGAUS) == 0) THEN
-       TREF = TREF + (S2C(ITILE,JTILE,1) * TREF_GAUS(IGAUS,JGAUS))
+       TSFC = TSFC + (S2C(ITILE,JTILE,1) * TSFC_GAUS(IGAUS,JGAUS))
        WSUM  = WSUM + S2C(ITILE,JTILE,1)
      ENDIF
 
      IF (SLMSK_GAUS(IGAUSP1,JGAUS) == 0) THEN
-       TREF = TREF + (S2C(ITILE,JTILE,2) * TREF_GAUS(IGAUSP1,JGAUS))
+       TSFC = TSFC + (S2C(ITILE,JTILE,2) * TSFC_GAUS(IGAUSP1,JGAUS))
        WSUM  = WSUM + S2C(ITILE,JTILE,2)
      ENDIF
 
      IF (SLMSK_GAUS(IGAUSP1,JGAUSP1) == 0) THEN
-       TREF = TREF + (S2C(ITILE,JTILE,3) * TREF_GAUS(IGAUSP1,JGAUSP1))
+       TSFC = TSFC + (S2C(ITILE,JTILE,3) * TSFC_GAUS(IGAUSP1,JGAUSP1))
        WSUM  = WSUM + S2C(ITILE,JTILE,3)
      ENDIF
 
      IF (SLMSK_GAUS(IGAUS,JGAUSP1) == 0) THEN
-       TREF = TREF + (S2C(ITILE,JTILE,4) * TREF_GAUS(IGAUS,JGAUSP1))
+       TSFC = TSFC + (S2C(ITILE,JTILE,4) * TSFC_GAUS(IGAUS,JGAUSP1))
        WSUM  = WSUM + S2C(ITILE,JTILE,4)
      ENDIF
 
      nintp = nintp + 1
-     TREF = TREF / WSUM
+     TSFC = TSFC / WSUM
 
-     TREF  = MAX(TREF, tf_ice)
-     TREF  = MIN(TREF, TMAX)
+     TSFC  = MAX(TSFC, tf_ice)
+     TSFC  = MIN(TSFC, TMAX)
 
-     SKINT_TILE(IJ) = TREF
+     SKINT_TILE(IJ) = TSFC
 
      SICET_TILE(IJ)   = SKINT_TILE(IJ)
      SOILT_TILE(IJ,:) = SKINT_TILE(IJ)
@@ -1707,7 +1711,7 @@ ENDIF
 
 !----------------------------------------------------------------------
 ! SEE IF NEARBY POINTS ARE SEA ICE.  IF THEY ARE, AND THE SEARCH FOR
-! A GAUSSIAN GRID OPEN WATER POINT FAILS, THEN TREF WILL BE SET TO
+! A GAUSSIAN GRID OPEN WATER POINT FAILS, THEN TSFC WILL BE SET TO
 ! FREEZING BELOW.
 !----------------------------------------------------------------------
 
@@ -1716,14 +1720,14 @@ ENDIF
              IF (SLMSK_GAUS(III,JJJ) == 0) THEN
 
 !              PRINT*,'MISMATCH AT TILE POINT  ',ITILE,JTILE
-!              PRINT*,'USING TREF AT ',III,JJJ,TREF_GAUS(III,JJJ)
+!              PRINT*,'USING TSFC AT ',III,JJJ,TSFC_GAUS(III,JJJ)
                nsearched = nsearched + 1
 
-               TREF = TREF_GAUS(III,JJJ)
-               TREF = MAX(TREF, tf_ice)
-               TREF = MIN(TREF, TMAX)
+               TSFC = TSFC_GAUS(III,JJJ)
+               TSFC = MAX(TSFC, tf_ice)
+               TSFC = MIN(TSFC, TMAX)
 
-               SKINT_TILE(IJ) = TREF
+               SKINT_TILE(IJ) = TSFC
 
                SICET_TILE(IJ)   = SKINT_TILE(IJ)
                SOILT_TILE(IJ,:) = SKINT_TILE(IJ)
@@ -1741,23 +1745,23 @@ ENDIF
      ENDDO ! KRAD LOOP
 
 !----------------------------------------------------------------------
-! THE SEARCH FAILED.  IF THERE IS NEARBY ICE, SET TREF TO FREEZING.
-! ELSE UPDATE TREF BASED ON THE ANNUAL SST CYCLE.
+! THE SEARCH FAILED.  IF THERE IS NEARBY ICE, SET TSFC TO FREEZING.
+! ELSE UPDATE TSFC BASED ON THE ANNUAL SST CYCLE.
 !----------------------------------------------------------------------
 
 !    PRINT*,'WARNING !!!!!! SEARCH FAILED AT TILE POINT ',ITILE,JTILE
 
      nfill = nfill  + 1
      IF (IS_ICE) THEN
-       TREF = tf_ice
-!      PRINT*,"NEARBY ICE.  SET TREF TO FREEZING"
+       TSFC = tf_ice
+!      PRINT*,"NEARBY ICE.  SET TSFC TO FREEZING"
        nfill_tice = nfill_tice + 1
      ELSE
-       TREF = 0.8*tf_ice+0.2*tf_clm_tile(IJ)
+       TSFC = 0.8*tf_ice+0.2*tf_clm_tile(IJ)
        nfill_clm = nfill_clm + 1
      ENDIF
 
-     SKINT_TILE(IJ) = TREF
+     SKINT_TILE(IJ) = TSFC
      SKINT_TILE(IJ) = MAX(SKINT_TILE(IJ), tf_ice)
      SKINT_TILE(IJ) = MIN(SKINT_TILE(IJ), TMAX)
 
@@ -1777,12 +1781,12 @@ ENDIF
 
  DEALLOCATE(ID1, ID2, JDC, S2C)
 
- END SUBROUTINE USE_TREF
+ END SUBROUTINE UPDATE_TSFC
 
  !> Replace tsea with tref on the cubed-sphere tile 
  !!
  !! @param[in] SLMSK_TILE Land-sea mask on the cubed-sphere tile
- !! @param[in] TREF_TILE foundation temperature on the cubed-sphere tile
+ !! @param[in] TSFC_TILE surface temperature on the cubed-sphere tile
  !! @param[inout] SKINT_TILE Skin temperature on the cubed-sphere tile
  !! @param[inout] SICET_TILE Ice temperature on the cubed-sphere tile
  !! @param[inout] SOILT_TILE Soil temperature on the cubed-sphere tile
@@ -1790,15 +1794,15 @@ ENDIF
  !! @param[in] LSOIL Number of soil layers
  !!
  !! @author Mingjing Tong
- SUBROUTINE USE_TREF_TILE(SLMSK_TILE,TREF_TILE,SKINT_TILE,SICET_TILE, &
-                          SOILT_TILE,LENSFC,LSOIL,TREFPERT)
+ SUBROUTINE UPDATE_TSFC_TILE(SLMSK_TILE,TSFC_TILE,SKINT_TILE,SICET_TILE, &
+                             SOILT_TILE,LENSFC,LSOIL,TSFCPERT,MYRANK)
 
  IMPLICIT NONE
 
- INTEGER, INTENT(IN)      :: LENSFC, LSOIL
+ INTEGER, INTENT(IN)      :: LENSFC, LSOIL, MYRANK
 
- REAL, INTENT(IN)         :: SLMSK_TILE(LENSFC), TREF_TILE(LENSFC)
- REAL, INTENT(IN)         :: TREFPERT(LENSFC)
+ REAL, INTENT(IN)         :: SLMSK_TILE(LENSFC), TSFC_TILE(LENSFC)
+ REAL, INTENT(IN)         :: TSFCPERT(LENSFC)
  REAL, INTENT(INOUT)      :: SKINT_TILE(LENSFC)
  REAL, INTENT(INOUT)      :: SICET_TILE(LENSFC), SOILT_TILE(LENSFC,LSOIL)
 
@@ -1806,7 +1810,7 @@ ENDIF
  INTEGER                  :: MASK_TILE
 
  PRINT*
- PRINT*,'USE TREF ON CUBED-SPHERE TILE'
+ PRINT*,'USE TSFC ON CUBED-SPHERE TILE'
 
  nfill = 0
  nice = 0
@@ -1827,7 +1831,10 @@ ENDIF
    ENDIF
 
    nfill = nfill + 1
-   SKINT_TILE(IJ) = TREF_TILE(IJ) + TREFPERT(IJ)
+   !if (MYRANK==0) print *,'SKINT_TILE(IJ), before ', SKINT_TILE(IJ)
+   SKINT_TILE(IJ) = TSFC_TILE(IJ) + TSFCPERT(IJ)
+   !if (MYRANK==0) print *,'SKINT_TILE(IJ), after ', SKINT_TILE(IJ)
+
 
    SICET_TILE(IJ)   = SKINT_TILE(IJ)
    SOILT_TILE(IJ,:) = SKINT_TILE(IJ)
@@ -1838,7 +1845,7 @@ ENDIF
  write(*,'(a,I8)') ' nice = ',nice
  write(*,'(a,I8)') ' nland = ',nland
 
- END SUBROUTINE USE_TREF_TILE 
+ END SUBROUTINE UPDATE_TSFC_TILE 
 
  !> If the tile point is an isolated water point that has no
  !! corresponding gsi water point, then tref is updated using the rtg

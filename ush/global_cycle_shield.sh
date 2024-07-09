@@ -109,7 +109,7 @@
 #                   defaults to 'eval [[ $err = 0 ]]'
 #     ENDSCRIPT     Postprocessing script
 #                   defaults to none
-#     CDATE         Output analysis date in yyyymmddhh format. Required.
+#     ADATE         Output analysis date in yyyymmddhh format. Required.
 #     FHOUR         Output forecast hour.  Defaults to 00hr.
 #     LSOIL         Number of soil layers. Defaults to 4.
 #     FSMCL2        Scale in days to relax to soil moisture climatology.
@@ -145,10 +145,12 @@
 #                   between the filtered and unfiltered terrain.  Default is true.
 #     DONST         Process NST records when using NST model.  Default is 'no'.
 #     DO_SFCCYCLE   Call sfcsub routine 
-#     DO_LNDINC     Call routine to update soil states with increment files
-#     DO_SNO_INC    Call routine to update snow states with increment files
-#     DO_TREF_TILE  Use tref from sfcanl on cubed-sphere tiles
-#     PERTURB_TERF  Add ensemble perturbation to GFS TREF
+#     DO_LNDINC     Call routine to update snow/soil states with increment files
+#     DO_SOI_INC_GSI    Call routine to update soil states with gsi(gaussian) increment files
+#     DO_SNO_INC_JEDI   Call routine to update snow states with jedi increment files
+#     DO_SOI_INC_JEDI   Call routine to update soil states with jedi increment files
+#     USE_TREF      Use tref from sfcanl file
+#     PERTURB_TSFC  Add ensemble perturbation to GFS SST
 #     zsea1/zsea2   When running with NST model, this is the lower/upper bound
 #                   of depth of sea temperature.  In whole mm.
 #     MAX_TASKS_CY  Normally, program should be run with a number of mpi tasks
@@ -249,7 +251,7 @@ PREINP=${PREINP:-" "}
 SUFINP=${SUFINP:-" "}
 CYCLEXEC=${CYCLEXEC:-$EXECgfs/global_cycle$XC}
 
-CDATE=${CDATE:?}
+ADATE=${ADATE:?}
 FHOUR=${FHOUR:-00}
 
 CRES=$(echo $CASE | cut -c2-)
@@ -271,12 +273,15 @@ use_ufo=${use_ufo:-.true.}
 DONST=${DONST:-"NO"}
 DO_SFCCYCLE=${DO_SFCCYCLE:-.true.}
 DO_LNDINC=${DO_LNDINC:-.false.}
-DO_SNO_INC=${DO_SNO_INC:-.false.}
-DO_TREF_TILE=${DO_TREF_TILE:-.false.}
-PERTURB_TREF=${PERTURB_TREF:-.false.}
+DO_SOI_INC_GSI=${DO_SOI_INC_GSI:-.false.}
+DO_SNO_INC_JEDI=${DO_SNO_INC_JEDI:-.false.}
+DO_SOI_INC_JEDI=${DO_SOI_INC_JEDI:-.false.}
 zsea1=${zsea1:-0}
 zsea2=${zsea2:-0}
 MAX_TASKS_CY=${MAX_TASKS_CY:-99999}
+FRAC_GRID=${FRAC_GRID:-.false.}
+USE_TREF=${USE_TREF:-.false.}
+PERTURB_TSFC=${PERTURB_TSFC:-.false.}
 
 FNGLAC=${FNGLAC:-${FIXam}/global_glacier.2x2.grb}
 FNMXIC=${FNMXIC:-${FIXam}/global_maxice.2x2.grb}
@@ -299,7 +304,6 @@ FNSLPC=${FNSLPC:-${FIXam}/global_slope.1x1.grb}
 FNMSKH=${FNMSKH:-${FIXam}/global_slmask.t1534.3072.1536.grb}
 NST_FILE=${NST_FILE:-"NULL"}
 SFCANL_FILE=${SFCANL_FILE:-"NULL"}
-LND_SOI_FILE=${LND_SOI_FILE:-"NULL"}
 FNTSFA=${FNTSFA:-${COMIN}/${PREINP}sstgrb${SUFINP}}
 FNACNA=${FNACNA:-${COMIN}/${PREINP}engicegrb${SUFINP}}
 FNSNOA=${FNSNOA:-${COMIN}/${PREINP}snogrb${SUFINP}}
@@ -343,10 +347,10 @@ export PGM=$CYCLEXEC
 export pgm=$PGM
 $LOGSCRIPT
 
-iy=$(echo $CDATE|cut -c1-4)
-im=$(echo $CDATE|cut -c5-6)
-id=$(echo $CDATE|cut -c7-8)
-ih=$(echo $CDATE|cut -c9-10)
+iy=$(echo $ADATE|cut -c1-4)
+im=$(echo $ADATE|cut -c5-6)
+id=$(echo $ADATE|cut -c7-8)
+ih=$(echo $ADATE|cut -c9-10)
 
 export OMP_NUM_THREADS=${OMP_NUM_THREADS_CY:-${CYCLETHREAD:-1}}
 
@@ -389,10 +393,9 @@ cat << EOF > fort.36
   idim=$CRES, jdim=$CRES, lsoil=$LSOIL,
   iy=$iy, im=$im, id=$id, ih=$ih, fh=$FHOUR,
   deltsfc=$DELTSFC,ialb=$IALB,use_ufo=$use_ufo,donst=$DONST,
-  do_sfccycle=$DO_SFCCYCLE,do_lndinc=$DO_LNDINC,
-  do_tref_tile=$DO_TREF_TILE,perturb_tref=$PERTURB_TREF,
-  isot=$ISOT,ivegsrc=$IVEGSRC,
-  zsea1_mm=$zsea1,zsea2_mm=$zsea2,MAX_TASKS=$MAX_TASKS_CY
+  do_sfccycle=$DO_SFCCYCLE,do_lndinc=$DO_LNDINC,isot=$ISOT,ivegsrc=$IVEGSRC,
+  zsea1_mm=$zsea1,zsea2_mm=$zsea2,MAX_TASKS=$MAX_TASKS_CY,
+  frac_grid=$FRAC_GRID,use_tref=$USE_TREF,perturb_tsfc=$PERTURB_TSFC
  /
 EOF
 
@@ -400,8 +403,10 @@ cat << EOF > fort.37
  &NAMSFCD
   NST_FILE="$NST_FILE",
   SFCANL_FILE="$SFCANL_FILE",
-  LND_SOI_FILE="$LND_SOI_FILE",
-  DO_SNO_INC=$DO_SNO_INC
+  DO_SOI_INC_GSI=$DO_SOI_INC_GSI,
+  DO_SNO_INC_JEDI=$DO_SNO_INC_JEDI,
+  DO_SOI_INC_JEDI=$DO_SOI_INC_JEDI,
+  lsoil_incr=3,
  /
 EOF
 
