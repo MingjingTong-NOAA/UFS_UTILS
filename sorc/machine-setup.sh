@@ -40,14 +40,7 @@ elif [[ -d /scratch1 ]] ; then
     module purge
 elif [[ -d /gpfs && -d /ncrc ]] ; then
     # We are on GAEA.
-    if ( ! eval module help > /dev/null 2>&1 ) ; then
-      # We cannot simply load the module command.  The GAEA
-      # /etc/profile modifies a number of module-related variables
-      # before loading the module command.  Without those variables,
-      # the module command fails.  Hence we actually have to source
-      # /etc/profile here.
-      source /etc/profile
-    fi
+    . ${MODULESHOME}/init/sh
     module reset
     target=gaea
 elif [[ "$(hostname)" =~ "Orion" || "$(hostname)" =~ "orion" ]]; then
