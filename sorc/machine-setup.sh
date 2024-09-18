@@ -38,54 +38,16 @@ elif [[ -d /scratch1 ]] ; then
     fi
     target=hera
     module purge
-elif [[ -d /glade ]] ; then
-    # We are on NCAR Cheyenne
-    if ( ! eval module help > /dev/null 2>&1 ) ; then
-        echo load the module command 1>&2
-        . /glade/u/apps/ch/opt/lmod/8.1.7/lmod/8.1.7/init/sh
-    fi
-    target=cheyenne
-    module purge
-elif [[ -d /lustre && -d /ncrc ]] ; then
+elif [[ -d /gpfs && -d /ncrc ]] ; then
     # We are on GAEA.
-    if ( ! eval module help > /dev/null 2>&1 ) ; then
-        # We cannot simply load the module command.  The GAEA
-        # /etc/profile modifies a number of module-related variables
-        # before loading the module command.  Without those variables,
-        # the module command fails.  Hence we actually have to source
-        # /etc/profile here.
-        source /etc/profile
-        __ms_source_etc_profile=yes
-    else
-        __ms_source_etc_profile=no
-    fi
-    module purge > /dev/null 2>&1
-    module purge
-# clean up after purge
-    unset _LMFILES_
-    unset _LMFILES_000
-    unset _LMFILES_001
-    unset LOADEDMODULES
-    module load modules
-    if [[ -d /opt/cray/ari/modulefiles ]] ; then
-        module use -a /opt/cray/ari/modulefiles
-    fi
-    if [[ -d /opt/cray/pe/ari/modulefiles ]] ; then
-        module use -a /opt/cray/pe/ari/modulefiles
-    fi
-    if [[ -d /opt/cray/pe/craype/default/modulefiles ]] ; then
-        module use -a /opt/cray/pe/craype/default/modulefiles
-    fi
-    if [[ -s /etc/opt/cray/pe/admin-pe/site-config ]] ; then
-        source /etc/opt/cray/pe/admin-pe/site-config
-    fi
-    if [[ "$__ms_source_etc_profile" == yes ]] ; then
-      source /etc/profile
-      unset __ms_source_etc_profile
-    fi
+    . ${MODULESHOME}/init/sh
+    module reset
     target=gaea
-elif [[ "$(hostname)" =~ "Orion" ]]; then
+elif [[ "$(hostname)" =~ "Orion" || "$(hostname)" =~ "orion" ]]; then
     target="orion"
+    module purge
+elif [[ "$(hostname)" =~ "hercules" || "$(hostname)" =~ "Hercules" ]]; then
+    target="hercules"
     module purge
 elif [[ -d /work/00315 && -d /scratch/00315 ]] ; then
     target=stampede
@@ -99,7 +61,18 @@ elif [[ -d /data/prod ]] ; then
     target=s4
     module purge
 else
-    echo WARNING: UNKNOWN PLATFORM 1>&2
+    if [[ ! -v PW_CSP ]]; then
+        echo WARNING: UNKNOWN PLATFORM 1>&2; exit 99
+    elif [[ -z "${PW_CSP}" ]]; then
+        echo WARNING: UNKNOWN PLATFORM 1>&2; exit 99
+    else
+        if [[ "${PW_CSP}" == "aws" || "${PW_CSP}" == "azure" || "${PW_CSP}" == "google" ]]; then
+            target=noaacloud
+            module purge
+        else
+            echo WARNING: UNKNOWN PLATFORM 1>&2; exit 99
+        fi
+    fi
 fi
 
 unset __ms_shell
