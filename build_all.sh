@@ -40,7 +40,7 @@ fi
 CMAKE_FLAGS="-DCMAKE_INSTALL_PREFIX=../ -DCMAKE_INSTALL_BINDIR=exec -DBUILD_TESTING=OFF"
 
 # Allow users of this script to provide CMake options e.g. -DGFS=ON|OFF to build GFS specific utilities only
-CMAKE_OPTS=${CMAKE_OPTS:-}
+CMAKE_OPTS=${CMAKE_OPTS:-"-DGFS=ON"}
 
 rm -fr ./build
 mkdir ./build && cd ./build
