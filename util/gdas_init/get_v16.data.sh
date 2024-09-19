@@ -16,6 +16,12 @@ set -x
 
 cd $EXTRACT_DIR
 
+workdir=$EXTRACT_DIR/logs/$yy$mm$dd$hh
+
+if [ ! -d $workdir ]; then
+  mkdir -p $workdir
+fi
+
 date10_m6=`$NDATE -6 $yy$mm$dd$hh`
 
 echo $date10_m6
@@ -60,20 +66,20 @@ if [ "$bundle" = "gdas" ] || [ "$bundle" = "gfs" ]; then
     file=com_gfs_${version}_gfs.${yy}${mm}${dd}_${hh}.gfs_nca.tar
   fi
 
-  rm -f ./list.hires*
-  touch ./list.hires3
-  htar -tvf  $directory/$file > ./list.hires1
-  grep "anl.nc" ./list.hires1 > ./list.hires2
+  rm -f $workdir/list.hires*
+  touch $workdir/list.hires3
+  htar -tvf  $directory/$file > $workdir/list.hires1
+  grep "anl.nc" $workdir/list.hires1 > $workdir/list.hires2
   while read -r line
   do 
-    echo ${line##*' '} >> ./list.hires3
-  done < "./list.hires2"
+    echo ${line##*' '} >> $workdir/list.hires3
+  done < "$workdir/list.hires2"
 
-  htar -xvf $directory/$file -L ./list.hires3
+  htar -xvf $directory/$file -L $workdir/list.hires3
   rc=$?
   [ $rc != 0 ] && exit $rc
 
-  rm -f ./list.hires*
+  rm -f $workdir/list.hires*
 
 #----------------------------------------------------------------------
 # Get the 'abias' and radstat files when processing 'gdas'.
@@ -115,19 +121,21 @@ else
   directory=/NCEPPROD/hpssprod/runhistory/5year/rh${yy_m6}/${yy_m6}${mm_m6}/${yy_m6}${mm_m6}${dd_m6}
   file=com_gfs_${version_enkf}_enkfgdas.${yy_m6}${mm_m6}${dd_m6}_${hh_m6}.enkfgdas_${group}.tar
 
-  rm -f ./list*.${group}
-  htar -tvf  $directory/$file > ./list1.${group}
-  grep "006.nc" ./list1.${group} > ./list2.${group}
+  rm -f $workdir/list*.${group}
+  htar -tvf  $directory/$file > $workdir/list1.${group}
+  grep "006.nc" $workdir/list1.${group} > $workdir/list2.${group}
   while read -r line
   do 
-    echo ${line##*' '} >> ./list3.${group}
-  done < "./list2.${group}"
-  htar -xvf $directory/$file  -L ./list3.${group}
+    echo ${line##*' '} >> $workdir/list3.${group}
+  done < "$workdir/list2.${group}"
+  htar -xvf $directory/$file  -L $workdir/list3.${group}
   rc=$?
   [ $rc != 0 ] && exit $rc
-  rm -f ./list*.${group}
+  rm -f $workdir/list*.${group}
 
 fi
+
+rm -rf $workdir
 
 set +x
 echo DATA PULL FOR $bundle DONE

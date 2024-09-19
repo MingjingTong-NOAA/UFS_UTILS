@@ -55,7 +55,7 @@ CMAKE_FLAGS+=" -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX:-${DIR_ROOT}} -DCMAKE_INS
 CMAKE_FLAGS+=" -DBUILD_TESTING=${BUILD_TESTING:-OFF}"
 
 # Allow users of this script to provide CMake options e.g. -DGFS=ON|OFF to build GFS specific utilities only
-CMAKE_OPTS=${CMAKE_OPTS:-}
+CMAKE_OPTS=${CMAKE_OPTS:-"-DGFS=ON"}
 
 # Re-use or create a new BUILD_DIR (Default: create new BUILD_DIR)
 BUILD_DIR=${BUILD_DIR:-"${DIR_ROOT}/build"}
@@ -69,5 +69,8 @@ make install
 
 #ctest
 #ctest -I 4,5
+
+cd "${DIR_ROOT}/fix"
+./link_fixdirs.sh emc $target
 
 exit 0
