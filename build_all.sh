@@ -70,4 +70,7 @@ make install
 #ctest
 #ctest -I 4,5
 
+cd "${DIR_ROOT}/fix"
+./link_fixdirs.sh emc $target
+
 exit 0
