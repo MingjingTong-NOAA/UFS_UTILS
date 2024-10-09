@@ -11,6 +11,9 @@ copy_data()
   MEM=$1
 
   SAVEDIR_MODEL_DATA=${SUBDIR}/${CTAR}/INPUT
+  if [ -d SAVEDIR_MODEL_DATA ]; then
+    rm -rf $SAVEDIR_MODEL_DATA
+  fi
   mkdir -p $SAVEDIR_MODEL_DATA
   cp gfs_ctrl.nc $SAVEDIR_MODEL_DATA
 
@@ -21,10 +24,12 @@ copy_data()
   done
 
   if [[ ${MEM} == 'gdas' && $SUBDIR != $INPUT_DATA_DIR ]]; then
-    SAVEDIR_ANALYSIS=$SUBDIR/analysis/atmos
-    mkdir -p $SAVEDIR_ANALYSIS
-    cp ${INPUT_DATA_DIR}/*abias* $SAVEDIR_ANALYSIS/
-    cp ${INPUT_DATA_DIR}/*radstat $SAVEDIR_ANALYSIS/
+    SAVEDIR_ANALYSIS=$SUBDIR/analysis
+    if [ ! -d SAVEDIR_ANALYSIS ]; then
+      mkdir -p $SAVEDIR_ANALYSIS
+      cp ${INPUT_DATA_DIR}/*abias* $SAVEDIR_ANALYSIS/
+      cp ${INPUT_DATA_DIR}/*radstat $SAVEDIR_ANALYSIS/
+    fi
   fi
 }
 
@@ -49,8 +54,8 @@ set -x
 
 if [ ${MEMBER} == 'gdas' ] || [ ${MEMBER} == 'gfs' ]; then
   SUBDIR=$OUTDIR/${MEMBER}.${yy}${mm}${dd}/${hh}/atmos
-  if [ $SUBDIR != $INPUT_DATA_DIR ]; then
-    rm -fr $SUBDIR
+  if [[ $SUBDIR != $INPUT_DATA_DIR && ! -d $SUBDIR ]]; then
+     mkdir $SUBDIR
   fi
   copy_data ${MEMBER}
 elif [ ${MEMBER} == 'enkf' ]; then  # v16 retro data only.
@@ -61,17 +66,17 @@ elif [ ${MEMBER} == 'enkf' ]; then  # v16 retro data only.
     else
       MEMBER_CH="0${MEMBER}"
     fi
-    SUBDIR=$OUTDIR/enkfgdas.${yy}${mm}${dd}/${hh}/mem${MEMBER_CH}
-    if [ $SUBDIR != $INPUT_DATA_DIR ]; then
-      rm -fr $SUBDIR
+    SUBDIR=$OUTDIR/enkfgdas.${yy}${mm}${dd}/${hh}/atmos/mem${MEMBER_CH}
+    if [[ $SUBDIR != $INPUT_DATA_DIR && ! -d $SUBDIR ]]; then
+       mkdir $SUBDIR
     fi
     copy_data ${MEMBER}
     MEMBER=$(( $MEMBER + 1 ))
   done
 else
   SUBDIR=$OUTDIR/enkfgdas.${yy}${mm}${dd}/${hh}/mem${MEMBER}
-  if [ $SUBDIR != $INPUT_DATA_DIR ]; then
-    rm -fr $SUBDIR
+  if [[ $SUBDIR != $INPUT_DATA_DIR && ! -d $SUBDIR ]]; then
+     mkdir $SUBDIR
   fi
   copy_data ${MEMBER}
 fi
