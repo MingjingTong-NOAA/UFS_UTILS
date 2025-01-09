@@ -22,10 +22,12 @@ set -x
 
 source ../../sorc/machine-setup.sh > /dev/null 2>&1
 module use ../../modulefiles
-module load build.$target.intel
+module load build.$target.intelllvm
+set +x
 module list
+set -x
 
-export WORK_DIR="${WORK_DIR:-/lfs4/HFIP/emcda/$LOGNAME/stmp}"
+export WORK_DIR="${WORK_DIR:-/lfs5/HFIP/emcda/$LOGNAME/stmp}"
 
 PROJECT_CODE="${PROJECT_CODE:-hfv3gfs}"
 QUEUE="${QUEUE:-batch}"
@@ -43,7 +45,7 @@ fi
 
 export DATA_DIR="${WORK_DIR}/reg-tests/global-cycle"
 
-export HOMEreg=/lfs4/HFIP/hfv3gfs/emc.nemspara/role.ufsutils/ufs_utils/reg_tests/global_cycle
+export HOMEreg=/lfs5/HFIP/hfv3gfs/emc.nemspara/role.ufsutils/ufs_utils/reg_tests/global_cycle
 
 export OMP_NUM_THREADS_CY=2
 

@@ -108,14 +108,20 @@ TESTS_FILE="$PATHRT/rt.conf"
 export TEST_NAME=
 
 # for C3072 on hera, use WLCLK=60 and MEM="--exclusive"
-WLCLK_dflt=35
+WLCLK_dflt=60
 export WLCLK=$WLCLK_dflt
 MEM_dflt="--mem=16g"
 export MEM=$MEM_dflt
 
 cd $PATHRT
-export compiler=${compiler:-intel}
+export compiler=${compiler:-intelllvm}
 source $PATHTR/sorc/machine-setup.sh >/dev/null 2>&1
+if [[ "$compiler" == "intelllvm" ]]; then
+  if [[ ! -f ${PATHTR}/modulefiles/build.$target.$compiler.lua ]];then
+     echo "IntelLLVM not available. Will use Intel Classic."
+    compiler=intel
+  fi
+fi
 echo "Machine: $target"
 echo "Compiler: $compiler"
 
@@ -162,9 +168,9 @@ elif [[ $target = hercules ]]; then
     ulimit -s unlimited
     SBATCH_COMMAND="./cpld_gridgen.sh"
 elif [[ $target = jet ]]; then
-    STMP=${STMP:-/lfs4/HFIP/h-nems/$USER}
-    export MOM6_FIXDIR=/lfs4/HFIP/hfv3gfs/glopara/git/fv3gfs/fix/mom6/20220805
-    BASELINE_ROOT=/lfs4/HFIP/hfv3gfs/emc.nemspara/role.ufsutils/ufs_utils/reg_tests/cpld_gridgen/baseline_data
+    STMP=${STMP:-/lfs5/HFIP/h-nems/$USER}
+    export MOM6_FIXDIR=/lfs5/HFIP/hfv3gfs/glopara/FIX/fix/mom6/20220805
+    BASELINE_ROOT=/lfs5/HFIP/hfv3gfs/emc.nemspara/role.ufsutils/ufs_utils/reg_tests/cpld_gridgen/baseline_data
     ACCOUNT=${ACCOUNT:-h-nems}
     QUEUE=${QUEUE:-batch}
     NCCMP=nccmp
@@ -221,7 +227,9 @@ if [[ $target = wcoss2 ]]; then
   module load netcdf
   module load nccmp
 fi
+set +x
 module list
+set -x
 
 if [[ $CREATE_BASELINE = true ]]; then
     rm -rf $NEW_BASELINE_ROOT
@@ -239,8 +247,7 @@ while read -r line || [ "$line" ]; do
     [[ $line =~ \# ]] && continue
 
     TEST_NAME=$(echo $line | cut -d'|' -f1 | sed -e 's/^ *//' -e 's/ *$//')
-    MOSAICRES=${TEST_NAME%_*}
-    TEST_NAME=${TEST_NAME##*_}
+    TEST_NAME=${TEST_NAME##mx}
 
     cd $PATHRT
     RUNDIR=$RUNDIR_ROOT/$TEST_NAME
@@ -251,7 +258,6 @@ while read -r line || [ "$line" ]; do
     # OUTDIR_PATH is passed down to $PATHTR/ush/cpld_gridgen.sh
     # It MUST be set
     export OUTDIR_PATH=$RUNDIR
-    export MOSAICRES=$MOSAICRES
 
     cp $PATHTR/exec/cpld_gridgen $RUNDIR
     cp $PATHTR/ush/cpld_gridgen.sh $RUNDIR
