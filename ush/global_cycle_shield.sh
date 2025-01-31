@@ -109,7 +109,7 @@
 #                   defaults to 'eval [[ $err = 0 ]]'
 #     ENDSCRIPT     Postprocessing script
 #                   defaults to none
-#     ADATE         Output analysis date in yyyymmddhh format. Required.
+#     CDATE         Output analysis date in yyyymmddhh format. Required.
 #     FHOUR         Output forecast hour.  Defaults to 00hr.
 #     LSOIL         Number of soil layers. Defaults to 4.
 #     FSMCL2        Scale in days to relax to soil moisture climatology.
@@ -251,7 +251,7 @@ PREINP=${PREINP:-" "}
 SUFINP=${SUFINP:-" "}
 CYCLEXEC=${CYCLEXEC:-$EXECgfs/global_cycle$XC}
 
-ADATE=${ADATE:?}
+CDATE=${CDATE:?}
 FHOUR=${FHOUR:-00}
 
 CRES=$(echo $CASE | cut -c2-)
@@ -347,10 +347,10 @@ export PGM=$CYCLEXEC
 export pgm=$PGM
 $LOGSCRIPT
 
-iy=$(echo $ADATE|cut -c1-4)
-im=$(echo $ADATE|cut -c5-6)
-id=$(echo $ADATE|cut -c7-8)
-ih=$(echo $ADATE|cut -c9-10)
+iy=$(echo $CDATE|cut -c1-4)
+im=$(echo $CDATE|cut -c5-6)
+id=$(echo $CDATE|cut -c7-8)
+ih=$(echo $CDATE|cut -c9-10)
 
 export OMP_NUM_THREADS=${OMP_NUM_THREADS_CY:-${CYCLETHREAD:-1}}
 
