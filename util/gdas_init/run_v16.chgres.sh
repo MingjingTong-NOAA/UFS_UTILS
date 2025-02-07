@@ -78,7 +78,23 @@ if [ $rc != 0 ]; then
   exit $rc
 fi
 
-$GDAS_INIT_DIR/copy_coldstart_files.sh $MEMBER $OUTDIR $yy $mm $dd $hh $INPUT_DATA_DIR $CTAR
+if [[ ${ZERO_BIASCOEFF:-"NO"} == "YES" ]]; then
+  if [ ! -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias ]; then
+    echo "WARNING: bias coefficients not exist"
+  else 
+    ln -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias ./abias  
+    ln -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias_air ./abias_air
+    ln -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias_pc ./abias_pc
+    
+    $APRUN $UFS_DIR/../../exec/zero_biascoeff.x
+    
+    mv abias.zeroed gdas.t${hh}z.abias
+    mv abias_air.zeroed gdas.t${hh}z.abias_air
+    mv abias_pc.zeroed gdas.t${hh}z.abias_pc
+  fi
+fi
+
+$GDAS_INIT_DIR/copy_coldstart_files.sh $MEMBER $OUTDIR $yy $mm $dd $hh $INPUT_DATA_DIR $CRES_HIRES ${ZERO_BIASCOEFF:-"NO"}
 
 rm -fr $WORKDIR
 
