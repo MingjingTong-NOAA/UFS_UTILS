@@ -22,14 +22,11 @@ copy_data()
 
   if [[ ${MEM} == 'gdas' ]]; then
     SAVEDIR_ANALYSIS=${COMOUT_ATMOS_ANALYSIS:-$SUBDIR_ANAL}
-    SAVEDIR_ANALYSIS_CRES=$SUBDIR_ANAL_CRES
-    [[ ! -d $SAVEDIR_ANALYSIS ]] && mkdir -p $SAVEDIR_ANALYSIS
-    [[ ! -d $SAVEDIR_ANALYSIS_CRES ]] && mkdir -p $SAVEDIR_ANALYSIS_CRES
-    if [[ ${COPYABIAS:-"NO"} == "YES" ]]; then
+    if [[ ${COPYABIAS:-"NO"} == "YES" && ! -s ${SAVEDIR_ANALYSIS}/gdas.t${hh}z.abias ]]; then
+      [[ ! -d $SAVEDIR_ANALYSIS ]] && mkdir -p $SAVEDIR_ANALYSIS
       cp ./gdas*abias* $SAVEDIR_ANALYSIS/
-    fi
-    if [[ ! -s $SAVEDIR_ANALYSIS_CRES/gdas.t${hh}z.abias ]]; then
-      ln -s $SAVEDIR_ANALYSIS/gdas*abias* $SAVEDIR_ANALYSIS_CRES/
+      [[ ! -d $SAVEDIR_ANALYSIS_CRES ]] && mkdir -p $SAVEDIR_ANALYSIS_CRES
+      ln -s $SAVEDIR_ANALYSIS/* $SAVEDIR_ANALYSIS_CRES/
     fi
   fi
 }

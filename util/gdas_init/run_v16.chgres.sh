@@ -16,7 +16,7 @@ FIX_FV3=$UFS_DIR/fix
 FIX_ORO=${FIX_FV3}/orog
 FIX_AM=${FIX_FV3}/am
 
-WORKDIR=${WORKDIR:-$OUTDIR/work.${MEMBER}}
+WORKDIR=${WORKDIR:-$OUTDIR/work/work.${MEMBER}}
 
 if [ ${MEMBER} == 'gdas' ] || [ ${MEMBER} == 'gfs' ] ; then
   CTAR=${CRES_HIRES}
