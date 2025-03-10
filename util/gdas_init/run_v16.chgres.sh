@@ -15,9 +15,8 @@ MEMBER=$1
 FIX_FV3=$UFS_DIR/fix
 FIX_ORO=${FIX_FV3}/orog
 FIX_AM=${FIX_FV3}/am
-GDAS_INIT_DIR=${GDAS_INIT_DIR:-$UFS_DIR/util/gdas_init}
 
-WORKDIR=${WORKDIR:-$OUTDIR/work.${MEMBER}}
+WORKDIR=${WORKDIR:-$OUTDIR/work/work.${MEMBER}}
 
 if [ ${MEMBER} == 'gdas' ] || [ ${MEMBER} == 'gfs' ] ; then
   CTAR=${CRES_HIRES}
@@ -52,7 +51,7 @@ source $GDAS_INIT_DIR/set_fixed_files.sh
 cat << EOF > fort.41
 
 &config
- fix_dir_target_grid="${FIX_ORO}/${ORO_DIR}/sfc"
+ fix_dir_target_grid="${FIX_ORO}/${ORO_DIR}/fix_sfc"
  mosaic_file_target_grid="${FIX_ORO}/${ORO_DIR}/${CTAR}_mosaic.nc"
  orog_dir_target_grid="${FIX_ORO}/${ORO_DIR}"
  orog_files_target_grid="${ORO_NAME}.tile1.nc","${ORO_NAME}.tile2.nc","${ORO_NAME}.tile3.nc","${ORO_NAME}.tile4.nc","${ORO_NAME}.tile5.nc","${ORO_NAME}.tile6.nc"
@@ -79,7 +78,23 @@ if [ $rc != 0 ]; then
   exit $rc
 fi
 
-$GDAS_INIT_DIR/copy_coldstart_files.sh $MEMBER $OUTDIR $yy $mm $dd $hh $INPUT_DATA_DIR
+if [[ ${ZERO_BIASCOEFF:-"NO"} == "YES" ]]; then
+  if [ ! -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias ]; then
+    echo "WARNING: bias coefficients not exist"
+  else 
+    ln -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias ./abias  
+    ln -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias_air ./abias_air
+    ln -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias_pc ./abias_pc
+    
+    $APRUN $UFS_DIR/../../exec/zero_biascoeff.x
+    
+    mv abias.zeroed gdas.t${hh}z.abias
+    mv abias_air.zeroed gdas.t${hh}z.abias_air
+    mv abias_pc.zeroed gdas.t${hh}z.abias_pc
+  fi
+fi
+
+$GDAS_INIT_DIR/copy_coldstart_files.sh $MEMBER $OUTDIR $yy $mm $dd $hh $INPUT_DATA_DIR $CRES_HIRES ${ZERO_BIASCOEFF:-"NO"}
 
 rm -fr $WORKDIR
 

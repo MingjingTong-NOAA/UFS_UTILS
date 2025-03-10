@@ -24,12 +24,13 @@ set -x
 MEMBER=$1
 date10=$2
 CTAR=$3
+SAVEDIR=$4
 
 FIX_FV3=$UFS_DIR/fix
 FIX_ORO=${FIX_FV3}/orog
 FIX_AM=${FIX_FV3}/am
 
-WORKDIR=${WORKDIR:-$OUTDIR/work.${MEMBER}}
+WORKDIR=${WORKDIR:-${DATA}/work.${MEMBER}}
 MODE=${MODE:-"cycled"}
 CINP=${OPS_RES}
 
@@ -37,10 +38,7 @@ CINP=${OPS_RES}
 # Some gfs tarballs from the v16 retro parallels dont have 'atmos'
 # in their path.  Account for this.
 #---------------------------------------------------------------------------
-  INPUT_DATA_DIR="${EXTRACT_DIR}/${MEMBER}.${yy}${mm}${dd}/${hh}/atmos/RESTART_GFS"
-  if [ ! -d ${INPUT_DATA_DIR} ]; then
-    INPUT_DATA_DIR="${EXTRACT_DIR}/${MEMBER}.${yy}${mm}${dd}/${hh}/RESTART_GFS"
-  fi
+  INPUT_DATA_DIR=${COMIN_ATMOS_ANALYSIS_RESTART:-"${EXTRACT_DIR}/${MEMBER}.${yy}${mm}${dd}/${hh}/atmos"}
   #date10=`$NDATE -3 $yy$mm$dd$hh`
   #date10=$IAUSDATE
   yy_d=$(echo $date10 | cut -c1-4)
@@ -90,9 +88,8 @@ if [ $rc != 0 ]; then
 fi
 
 outtype=${outtype:-$MEMBER}
-SAVEDIR=$OUTDIR/${outtype}.${yy}${mm}${dd}/${hh}/atmos/RESTART_${CTAR}
 copy_data
-touch $SAVEDIR/../${MEMBER}.t${hh}z.loginc.txt
+#touch $SAVEDIR/../${MEMBER}.t${hh}z.loginc.txt
 
 rm -fr $WORKDIR
 

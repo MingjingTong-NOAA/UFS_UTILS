@@ -2,8 +2,8 @@ help([[
 Load environment to compile UFS_UTILS on Gaea C6 using Intel
 ]])
 
-prepend_path("MODULEPATH", "/sw/rdtn/modulefiles")
-load("hsi")
+--prepend_path("MODULEPATH", "/sw/rdtn/modulefiles")
+--load("hsi")
 
 prepend_path("MODULEPATH", "/ncrc/proj/epic/spack-stack/c6/spack-stack-1.6.0/envs/unified-env/install/modulefiles/Core")
 
@@ -35,8 +35,8 @@ w3emc_ver=os.getenv("w3emc_ver") or "2.10.0"
 load(pathJoin("w3emc", w3emc_ver))
 
 -- Uncomment when CHGRES_ALL is ON
---sfcio_ver=os.getenv("sfcio_ver") or "1.4.1"
---load(pathJoin("sfcio", sfcio_ver))
+sfcio_ver=os.getenv("sfcio_ver") or "1.4.1"
+load(pathJoin("sfcio", sfcio_ver))
 
 sigio_ver=os.getenv("sigio_ver") or "2.3.2"
 load(pathJoin("sigio", sigio_ver))
