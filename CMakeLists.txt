@@ -24,7 +24,7 @@ option(FRENCTOOLS "Enable building fre-nctools.fd" OFF)
 option(GRIDTOOLS "Enable building grid_tools.fd" ON)
 option(CHGRES "Enable building chgres_cube.fd" OFF)
 option(CHGRES_SHiELD "Enable building chgres_cube_shield.fd" ON)
-option(CHGRES_ALL "Build chgres with all input data options." ON)
+option(CHGRES_ALL "Build chgres with all input data options." OFF)
 option(OROG_MASK_TOOLS "Enable building orog_mask_tools.fd" ON)
 # OROG_MASK_TOOLS must be ON for OROG_NETCDF_TOOLS to build.
 option(OROG_NETCDF_TOOLS "Enable building orog_netcdf_tools.fd" ON)

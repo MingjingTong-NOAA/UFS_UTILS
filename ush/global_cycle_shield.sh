@@ -261,6 +261,7 @@ LATB_CASE=$((2*CRES))
 DELTSFC=${DELTSFC:-0}
 
 LSOIL=${LSOIL:-4}
+LSOIL_INCR=${LSOIL_INCR:-2}
 FSMCL2=${FSMCL2:-60}
 FSLPL=${FSLPL:-99999.}
 FSOTL=${FSOTL:-99999.}
@@ -272,10 +273,14 @@ CYCLVARS=${CYCLVARS:-""}
 use_ufo=${use_ufo:-.true.}
 DONST=${DONST:-"NO"}
 DO_SFCCYCLE=${DO_SFCCYCLE:-.true.}
-DO_LNDINC=${DO_LNDINC:-.false.}
-DO_SOI_INC_GSI=${DO_SOI_INC_GSI:-.false.}
-DO_SNO_INC_JEDI=${DO_SNO_INC_JEDI:-.false.}
-DO_SOI_INC_JEDI=${DO_SOI_INC_JEDI:-.false.}
+GCYCLE_DO_SOILINCR=${GCYCLE_DO_SOILINCR:-.false.}
+GCYCLE_DO_SNOWINCR=${GCYCLE_DO_SNOWINCR:-.false.}
+if [ "$GCYCLE_DO_SOILINCR" == ".true." ] || [ "$GCYCLE_DO_SNOWINCR" == ".true." ] ; then
+        DO_LANDINCR=".true."
+else
+        DO_LANDINCR=".false."
+fi
+GCYCLE_INTERP_LANDINCR=${GCYCLE_INTERP_LANDINCR:-.false.}
 zsea1=${zsea1:-0}
 zsea2=${zsea2:-0}
 MAX_TASKS_CY=${MAX_TASKS_CY:-99999}
@@ -392,8 +397,8 @@ cat << EOF > fort.36
  &NAMCYC
   idim=$CRES, jdim=$CRES, lsoil=$LSOIL,
   iy=$iy, im=$im, id=$id, ih=$ih, fh=$FHOUR,
-  deltsfc=$DELTSFC,ialb=$IALB,use_ufo=$use_ufo,donst=$DONST,
-  do_sfccycle=$DO_SFCCYCLE,do_lndinc=$DO_LNDINC,isot=$ISOT,ivegsrc=$IVEGSRC,
+  deltsfc=$DELTSFC,ialb=$IALB,use_ufo=$use_ufo,donst="$DONST",
+  do_sfccycle=$DO_SFCCYCLE,do_landincr=$DO_LANDINCR,isot=$ISOT,ivegsrc=$IVEGSRC,
   zsea1_mm=$zsea1,zsea2_mm=$zsea2,MAX_TASKS=$MAX_TASKS_CY,
   frac_grid=$FRAC_GRID,use_tref=$USE_TREF,perturb_tsfc=$PERTURB_TSFC
  /
@@ -402,11 +407,10 @@ EOF
 cat << EOF > fort.37
  &NAMSFCD
   NST_FILE="$NST_FILE",
-  SFCANL_FILE="$SFCANL_FILE",
-  DO_SOI_INC_GSI=$DO_SOI_INC_GSI,
-  DO_SNO_INC_JEDI=$DO_SNO_INC_JEDI,
-  DO_SOI_INC_JEDI=$DO_SOI_INC_JEDI,
-  lsoil_incr=3,
+  DO_SOILINCR=$GCYCLE_DO_SOILINCR,
+  DO_SNOWINCR=$GCYCLE_DO_SNOWINCR,
+  INTERP_LANDINCR=$GCYCLE_INTERP_LANDINCR,
+  lsoil_incr=$LSOIL_INCR, 
  /
 EOF
 

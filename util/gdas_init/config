@@ -51,28 +51,51 @@
 #
 #-----------------------------------------------------------
 
-EXTRACT_DIR=/lfs/h2/emc/stmp/$USER/gdas.init/input
-EXTRACT_DATA=yes
+echo ${machine}
+case "${machine}" in
+  "hera")  
+    EXTRACT_DIR="/scratch2/GFDL/gfdlscr/proj-shared/GFSICS/opr"
+    ;;  
+  "gaeac5") 
+    EXTRACT_DIR="/gpfs/f5/gfdl_w/proj-shared/${USER}/GFSICS/opr"
+    ;;
+  "gaeac6")
+    EXTRACT_DIR="/gpfs/f6/bil-coastal-gfdl/proj-shared/${USER}/GFSICS/opr"
+    ;;
+  *)
+    echo "FATAL: Unknown target machine ${machine}, couldn't set EXTRACT_DIR"
+    exit 1
+    ;;
+esac
+
+OUTDIR="${EXTRACT_DIR}/output"
+echo $EXTRACT_DIR
+
+EXTRACT_DATA=no
 
 RUN_CHGRES=yes
 
-yy=2020
-mm=01
-dd=01
-hh=06
+ZERO_BIASCOEFF="YES"
+
+yy=2022
+mm=06
+dd=09
+hh=18
 
 use_v16retro=no
 
-LEVS=65
+LEVS=128
 
-CDUMP=gfs
+CDUMP=gdas
 
+#CRES_HIRES=C768
+#CRES_ENKF=C384
+#CRES_HIRES=C384
+#CRES_ENKF=C192
 CRES_HIRES=C192
 CRES_ENKF=C96
 
 UFS_DIR=$PWD/../..
-
-OUTDIR=/lfs/h2/emc/stmp/$USER/gdas.init/output
 
 #---------------------------------------------------------
 # Dont touch anything below here.
@@ -84,10 +107,12 @@ EXEC_DIR=$UFS_DIR/exec
 if [ "$use_v16retro" = "yes" ]; then
 
   gfs_ver=v16retro
+  LEVS=128
 
 else
 
   gfs_ver=v16
+  LEVS=128
 
 # No ENKF data prior to 2012/05/21/00z
   if [ $yy$mm$dd$hh -lt 2012052100 ]; then
@@ -124,7 +149,12 @@ else
     exit 1
   fi
 
+  if [ "$gfs_ver" != "v16" ]; then
+     LEVS=65
+  fi
+
 fi
 
-export EXTRACT_DIR yy mm dd hh UFS_DIR OUTDIR CRES_HIRES CRES_ENKF
-export LEVS gfs_ver EXEC_DIR GDAS_INIT_DIR
+export machine EXTRACT_DIR yy mm dd hh UFS_DIR OUTDIR CRES_HIRES CRES_ENKF
+export LEVS gfs_ver EXEC_DIR GDAS_INIT_DIR FIXshield ZERO_BIASCOEFF
+

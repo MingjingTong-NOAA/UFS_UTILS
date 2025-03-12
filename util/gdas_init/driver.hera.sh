@@ -18,17 +18,15 @@ module list
 module use -a /scratch2/NCEPDEV/nwprod/NCEPLIBS/modulefiles
 module load prod_util/1.1.0
 
-PROJECT_CODE=fv3-cpu
+PROJECT_CODE=gfdlhires
 QUEUE=batch
-
-export machine=hera
+machine=$target
 
 source config
 
 if [ $EXTRACT_DATA == yes ]; then
 
-  rm -fr $EXTRACT_DIR
-  mkdir -p $EXTRACT_DIR
+  [[ ! -d $EXTRACT_DIR ]] && mkdir -p $EXTRACT_DIR
 
   MEM=6000M
   WALLT="2:00:00"
