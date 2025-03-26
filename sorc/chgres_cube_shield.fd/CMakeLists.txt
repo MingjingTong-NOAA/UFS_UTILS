@@ -35,7 +35,7 @@ if(CHGRES_ALL)
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -DCHGRES_ALL")
 endif()
 
-set(exe_name chgres_cube)
+set(exe_name chgres_cube_shield)
 
 add_library(chgres_cube_lib STATIC ${lib_src})
 add_executable(${exe_name} ${exe_src})
