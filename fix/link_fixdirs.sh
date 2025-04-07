@@ -59,7 +59,7 @@ elif [ $machine = "gaeac5" ]; then
     FIX_DIR="/gpfs/f5/ufs-ard/world-shared/global/glopara/fix"
     FIX_shield="/gpfs/f5/gfdl_w/proj-shared/Mingjing.Tong/fix_shield"
 elif [ $machine = "gaeac6" ]; then
-    FIX_DIR="/gpfs/f6/bil-fire8/world-shared/global/glopara/fix"
+    FIX_DIR="/gpfs/f6/drsa-precip3/world-shared/role.glopara/fix"
     FIX_shield="/gpfs/f6/bil-coastal-gfdl/proj-shared/Mingjing.Tong/fix_shield"
 fi
 
