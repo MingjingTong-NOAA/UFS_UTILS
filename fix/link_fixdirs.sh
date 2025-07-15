@@ -9,7 +9,7 @@ set -ex
 #               'nco' (copies data).
 #
 #  $machine - is the machine. Choices are:
-#             'wcoss2', 'hera', 'jet', 'orion', 'hercules', 's4', 'gaeac5', 'gaeac6'
+#             'wcoss2', 'ursa', 'jet', 'orion', 'hercules', 'gaeac6'
 
 RUN_ENVIR=${1}
 machine=${2}
@@ -17,7 +17,7 @@ machine=${2}
 if [ $# -lt 2 ]; then
     set +x
     echo '***ERROR*** must specify two arguements: (1) RUN_ENVIR, (2) machine'
-    echo ' Syntax: link_fv3gfs.sh ( nco | emc | shield ) ( wcoss2 |  hera  | jet | orion | hercules | s4 | gaeac5 | gaeac6 )'
+    echo ' Syntax: link_fv3gfs.sh ( nco | emc | shield ) ( wcoss2 |  ursa  | jet | orion | hercules | gaeac6 )'
     exit 1
 fi
 
@@ -28,10 +28,10 @@ if [ $RUN_ENVIR != emc -a $RUN_ENVIR != nco -a $RUN_ENVIR != shield ]; then
     exit 1
 fi
 
-if [ $machine != wcoss2 -a $machine != hera -a $machine != jet -a $machine != orion -a $machine != s4 -a $machine != hercules -a $machine != gaeac5 -a $machine != gaeac6 ]; then
+if [ $machine != wcoss2 -a $machine != ursa -a $machine != jet -a $machine != orion -a $machine != hercules -a $machine != gaeac6 ]; then
     set +x
     echo '***ERROR*** unsupported machine'
-    echo 'Syntax: link_fv3gfs.sh ( nco | emc | shield ) ( wcoss2 | hera | jet | orion | hercules | s4 | gaeac5 | gaeac6 )'
+    echo 'Syntax: link_fv3gfs.sh ( nco | emc | shield ) ( wcoss2 | ursa | jet | orion | hercules | gaeac6 )'
     exit 1
 fi
 
@@ -44,20 +44,15 @@ pwd=$(pwd -P)
 #------------------------------
 #--model fix fields
 #------------------------------
-if [ $machine = "hera" ]; then
-    FIX_DIR="/scratch1/NCEPDEV/global/glopara/fix"
-    FIX_shield="/scratch2/GFDL/gfdlscr/proj-shared/fix_shield"
+if [ $machine = "ursa" ]; then
+    FIX_DIR="/scratch3/NCEPDEV/global/role.glopara/fix"
+    FIX_shield="/scratch4/GFDL/gfdlscr/proj-shared/fix_shield"
 elif [ $machine = "jet" ]; then
     FIX_DIR="/lfs5/HFIP/hfv3gfs/glopara/FIX/fix"
 elif [ $machine = "orion" -o $machine = "hercules" ]; then
-    FIX_DIR="/work/noaa/global/glopara/fix"
+    FIX_DIR="/work2/noaa/global/role-global/fix"
 elif [ $machine = "wcoss2" ]; then
     FIX_DIR="/lfs/h2/emc/global/noscrub/emc.global/FIX/fix"
-elif [ $machine = "s4" ]; then
-    FIX_DIR="/data/prod/glopara/fix"
-elif [ $machine = "gaeac5" ]; then
-    FIX_DIR="/gpfs/f5/ufs-ard/world-shared/global/glopara/fix"
-    FIX_shield="/gpfs/f5/gfdl_w/proj-shared/Mingjing.Tong/fix_shield"
 elif [ $machine = "gaeac6" ]; then
     FIX_DIR="/gpfs/f6/drsa-precip3/world-shared/role.glopara/fix"
     FIX_shield="/gpfs/f6/bil-coastal-gfdl/proj-shared/Mingjing.Tong/fix_shield"
