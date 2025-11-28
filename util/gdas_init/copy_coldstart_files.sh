@@ -10,8 +10,8 @@ copy_data()
 
   MEM=$1
 
-  SAVEDIR_MODEL_DATA=${COMOUT_ATMOS_INPUT:-$SUBDIR}
-  [[ ! -d $SAVEDIR_MODEL_DATA ]] && mkdir -p $SAVEDIR_MODEL_DATA
+  SAVEDIR_MODEL_DATA=${COMOUT_ATMOS_INPUT:-$SUBDIR_CRES/model/atmos/input}
+  mkdir -p $SAVEDIR_MODEL_DATA
   cp gfs_ctrl.nc $SAVEDIR_MODEL_DATA
 
   for tile in 'tile1' 'tile2' 'tile3' 'tile4' 'tile5' 'tile6'
@@ -20,13 +20,45 @@ copy_data()
     cp out.sfc.${tile}.nc ${SAVEDIR_MODEL_DATA}/sfc_data.${tile}.nc
   done
 
-  if [[ ${MEM} == 'gdas' ]]; then
-    SAVEDIR_ANALYSIS=${COMOUT_ATMOS_ANALYSIS:-$SUBDIR_ANAL}
-    if [[ ${COPYABIAS:-"NO"} == "YES" && ! -s ${SAVEDIR_ANALYSIS}/gdas.t${hh}z.abias ]]; then
-      [[ ! -d $SAVEDIR_ANALYSIS ]] && mkdir -p $SAVEDIR_ANALYSIS
-      cp ./gdas*abias* $SAVEDIR_ANALYSIS/
-      [[ ! -d $SUBDIR_ANAL_CRES ]] && mkdir -p $SUBDIR_ANAL_CRES
-      ln -s $SAVEDIR_ANALYSIS/* $SUBDIR_ANAL_CRES/
+  if [ ${MEM} == 'gdas' ]; then
+    SAVEDIR_ANALYSIS=${COMOUT_ATMOS_ANALYSIS:-$SUBDIR/analysis/atmos}
+    if [[ ${COPYABIAS:-"NO"} == "YES" ]]; then
+    mkdir -p $SAVEDIR_ANALYSIS
+
+    if [[ ${ZERO_BIASCOEFF:-"NO"} == "YES" ]]; then
+       INPUT_ABIAS_DIR=${INPUT_DATA_DIR}/zeroed
+    else
+       INPUT_ABIAS_DIR=${INPUT_DATA_DIR}
+    fi
+    for abias_file in ${INPUT_ABIAS_DIR}/*abias*; do
+      base_abias_name=$(basename ${abias_file})
+      # Test for v17 style abias file names
+      if [[ "${base_abias_name}" == *".txt" ]]; then
+        cp ${INPUT_ABIAS_DIR}/${base_abias_name} $SAVEDIR_ANALYSIS/${base_abias_name}
+      else
+        cp ${INPUT_ABIAS_DIR}/${base_abias_name} $SAVEDIR_ANALYSIS/${base_abias_name}.txt
+      fi
+    done
+    
+    for radstat_file in ${INPUT_DATA_DIR}/*radstat; do
+      base_radstat_name=$(basename ${radstat_file})
+      if [[ "${base_radstat_name}" == *".tar" ]]; then
+        cp ${INPUT_DATA_DIR}/${base_radstat_name} $SAVEDIR_ANALYSIS/${base_radstat_name}
+        final_name=${base_radstat_name}
+      else
+        cp ${INPUT_DATA_DIR}/${base_radstat_name} $SAVEDIR_ANALYSIS/${base_radstat_name}.tar
+        final_name=${base_radstat_name}.tar
+      fi
+      group=$(stat -c %G ${INPUT_DATA_DIR}/${base_radstat_name})
+      if [[ "${group}" == "rstprod" ]]; then
+        chgrp rstprod $SAVEDIR_ANALYSIS/${final_name}
+        chmod 640 $SAVEDIR_ANALYSIS/${final_name}
+      fi
+    done
+
+    SAVEDIR_ANALYSIS_CRES=${SUBDIR_CRES}/analysis/atmos
+    mkdir -p $SAVEDIR_ANALYSIS_CRES
+    ln -s $SAVEDIR_ANALYSIS/* $SAVEDIR_ANALYSIS_CRES/
     fi
   fi
 }
@@ -52,9 +84,8 @@ echo 'COPY DATA TO OUTPUT DIRECTORY'
 set -x
 
 if [ ${MEMBER} == 'gdas' ] || [ ${MEMBER} == 'gfs' ]; then
-  SUBDIR=${OUTDIR}/${CRES}/${MEMBER}.${yy}${mm}${dd}/${hh}/model/atmos/input
-  SUBDIR_ANAL=${OUTDIR}/${MEMBER}.${yy}${mm}${dd}/${hh}/analysis/atmos
-  SUBDIR_ANAL_CRES=${OUTDIR}/${CRES}/${MEMBER}.${yy}${mm}${dd}/${hh}/analysis/atmos
+  SUBDIR=$OUTDIR/${MEMBER}.${yy}${mm}${dd}/${hh}
+  SUBDIR_CRES=${OUTDIR}/${CRES}/${MEMBER}.${yy}${mm}${dd}/${hh}
   copy_data ${MEMBER}
 elif [ ${MEMBER} == 'enkf' ]; then  # v16 retro data only.
   MEMBER=1
@@ -64,13 +95,54 @@ elif [ ${MEMBER} == 'enkf' ]; then  # v16 retro data only.
     else
       MEMBER_CH="0${MEMBER}"
     fi
-    SUBDIR=${OUTDIR}/${CRES}/enkfgdas.${yy}${mm}${dd}/${hh}/mem${MEMBER_CH}/model/atmos/input
+    SUBDIR=$OUTDIR/enkfgdas.${yy}${mm}${dd}/${hh}/mem${MEMBER_CH}
+    SUBDIR_CRES=${OUTDIR}/${CRES}/enkfgdas.${yy}${mm}${dd}/${hh}/mem${MEMBER_CH}
     copy_data ${MEMBER}
     MEMBER=$(( $MEMBER + 1 ))
   done
 else
-  SUBDIR=${OUTDIR}/${CRES}/enkfgdas.${yy}${mm}${dd}/${hh}/mem${MEMBER}/model/atmos/input
+  SUBDIR=$OUTDIR/enkfgdas.${yy}${mm}${dd}/${hh}/mem${MEMBER}
+  SUBDIR_CRES=${OUTDIR}/${CRES}/enkfgdas.${yy}${mm}${dd}/${hh}/mem${MEMBER}
   copy_data ${MEMBER}
 fi
+
+
+
+
+
+#------------------------------------------------------------------------------------
+# Make the README files with all relevant info to reproduce the outputs
+#------------------------------------------------------------------------------------
+
+cd $UFS_DIR
+
+commit_string=$(git log -1 --oneline)
+commit_num=$(echo $commit_string | cut -c1-7)
+
+cd ${SAVEDIR_MODEL_DATA}
+
+cat <<EOF > README.TXT
+The following parameters were used
+creation date=$(date +%Y-%m-%d)
+commit_num=$commit_num
+yy=$yy
+mm=$mm
+dd=$dd
+hh=$hh
+LEVS=$LEVS
+CRES_HIRES=$CRES_HIRES
+CRES_ENKF=$CRES_ENKF
+gfs_ver=$gfs_ver
+use_v16retro=$use_v16retro
+OUTDIR=$OUTDIR
+EXTRACT_DIR=$EXTRACT_DIR
+FIX_ORO_INPUT=$FIX_ORO_INPUT
+
+EOF
+
+
+
+
+
 
 exit 0

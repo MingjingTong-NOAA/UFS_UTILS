@@ -117,12 +117,14 @@
  LOGICAL :: USE_TREF, PERTURB_TSFC
  INTEGER :: orig_group, new_group, new_comm, k
  integer,dimension(:),allocatable:: new_group_members
+ LOGICAL :: COUPLED
 !
  NAMELIST/NAMCYC/ IDIM,JDIM,LSOIL,LUGB,IY,IM,ID,IH,FH,&
                   DELTSFC,IALB,USE_UFO,DONST,             &
                   DO_SFCCYCLE,ISOT,IVEGSRC,ZSEA1_MM,      &
                   ZSEA2_MM, MAX_TASKS, DO_LANDINCR, FRAC_GRID, &
-                  USE_TREF, PERTURB_TSFC
+                  USE_TREF, PERTURB_TSFC, &
+                  COUPLED
 !
  DATA IDIM,JDIM,LSOIL/96,96,4/
  DATA IY,IM,ID,IH,FH/1997,8,2,0,0./
@@ -149,6 +151,7 @@
  FRAC_GRID = .FALSE.
  USE_TREF = .FALSE.
  PERTURB_TSFC = .FALSE.
+ COUPLED = .FALSE.
 
  PRINT*
  PRINT*,"READ NAMCYC NAMELIST."
@@ -198,13 +201,13 @@
  PRINT*
  IF (MYRANK==0) PRINT*,"LUGB,IDIM,JDIM,ISOT,IVEGSRC,LSOIL,DELTSFC,IY,IM,ID,IH,FH: ", &
               LUGB,IDIM,JDIM,ISOT,IVEGSRC,LSOIL,DELTSFC,IY,IM,ID,IH,FH
+ IF (MYRANK==0) PRINT*,"DO_LANDINCR,FRAC_GRID,COUPLED: ", DO_LANDINCR,FRAC_GRID,COUPLED
 
  CALL SFCDRV(LUGB,IDIM,JDIM,LENSFC,LSOIL,DELTSFC,  &
              IY,IM,ID,IH,FH,IALB,                  &
              USE_UFO,DO_NSST,DO_SFCCYCLE,DO_LANDINCR, &
-             FRAC_GRID,USE_TREF,PERTURB_TSFC, &
-             ZSEA1,ZSEA2,ISOT,IVEGSRC,MYRANK, &
-             MAX_TASKS,new_comm)
+             USE_TREF,PERTURB_TSFC,MAX_TASKS,new_comm, &             
+             FRAC_GRID,COUPLED,ZSEA1,ZSEA2,ISOT,IVEGSRC,MYRANK)
  
  PRINT*
  PRINT*,'CYCLE PROGRAM COMPLETED NORMALLY ON RANK: ', MYRANK
@@ -323,6 +326,7 @@
  !! @param[in] FRAC_GRID When true, run with fractional grid.
  !! @param[in] USE_TREF Use TREF analysis on TILE for skin temperature
  !! @param[in] PERTURB_TSFC Add perturbation to GFS surface temperature
+ !! @param[in] COUPLED When true, run in coupled mode.
  !! @param[in] ZSEA1 When running NSST model, this is the lower bound
  !!            of depth of sea temperature.  In whole mm.
  !! @param[in] ZSEA2 When running NSST model, this is the upper bound
@@ -334,9 +338,8 @@
  SUBROUTINE SFCDRV(LUGB, IDIM,JDIM,LENSFC,LSOIL,DELTSFC,  &
                    IY,IM,ID,IH,FH,IALB,                  &
                    USE_UFO,DO_NSST,DO_SFCCYCLE,DO_LANDINCR,&
-                   FRAC_GRID,USE_TREF,PERTURB_TSFC, &
-                   ZSEA1,ZSEA2,ISOT,IVEGSRC,MYRANK, &
-                   nmem,new_comm)
+                   USE_TREF,PERTURB_TSFC,nmem,new_comm, &
+                   FRAC_GRID,COUPLED,ZSEA1,ZSEA2,ISOT,IVEGSRC,MYRANK)
 !
  USE READ_WRITE_DATA
  use machine
@@ -357,13 +360,17 @@
  INTEGER, INTENT(IN) :: nmem, new_comm
 
  LOGICAL, INTENT(IN) :: USE_UFO, DO_NSST,DO_SFCCYCLE
- LOGICAL, INTENT(IN) :: DO_LANDINCR, FRAC_GRID
  LOGICAL, INTENT(IN) :: USE_TREF, PERTURB_TSFC
+ LOGICAL, INTENT(IN) :: DO_LANDINCR, FRAC_GRID, COUPLED
  
  REAL, INTENT(IN)    :: FH, DELTSFC, ZSEA1, ZSEA2
 
  INTEGER, PARAMETER  :: NLUNIT=35
  INTEGER, PARAMETER  :: SZ_NML=1
+
+! Use the settings from the CCPP physics - SCM_GFS_v17_p8_input.nml
+ REAL, PARAMETER     :: MIN_LAKEICE=0.15
+ REAL, PARAMETER     :: MIN_SEAICE=0.15
 
  CHARACTER(LEN=5)    :: TILE_NUM
  CHARACTER(LEN=500)  :: NST_FILE
@@ -406,12 +413,13 @@
                                       !! dead start. Set to zero for non-dead
                                       !! start.
  REAL, ALLOCATABLE   :: STC_BCK(:,:), SMC_BCK(:,:), SLC_BCK(:,:)
- REAL, ALLOCATABLE   :: SLIFCS_FG(:), SICFCS_FG(:)
+ REAL, ALLOCATABLE   :: SLIFCS_FG(:), SICFCS_FG(:), SIHFCS_FG(:), SITFCS_FG(:)
  INTEGER, ALLOCATABLE :: LANDINC_MASK_FG(:), LANDINC_MASK(:)
  REAL, ALLOCATABLE   :: SND_BCK(:), SND_INC(:), SWE_BCK(:)
  REAL(KIND=KIND_IO8), ALLOCATABLE :: SLMASKL(:), SLMASKW(:), LANDFRAC(:)
  REAL, ALLOCATABLE   :: TSFC_TILE(:), TSFCMEAN(:)
  REAL                :: TSFCPERT(LENSFC)
+ REAL(KIND=KIND_IO8), ALLOCATABLE :: LAKEFRAC(:)
 
  TYPE(NSST_DATA)     :: NSST
  real, dimension(idim,jdim) :: tf_clm,tf_trd,sal_clm
@@ -439,7 +447,6 @@
  DO_SOILINCR      = .FALSE.
  INTERP_LANDINCR   = .FALSE.
  lsoil_incr = 3 !default
-
  
  SIG1T = 0.0            ! Not a dead start!
 
@@ -463,13 +470,18 @@
 ! READ THE OROGRAPHY AND GRID POINT LAT/LONS FOR THE CUBED-SPHERE TILE.
 !--------------------------------------------------------------------------------
 
+! Will we run coupled without a fractional grid?
+
  ALLOCATE(LANDFRAC(LENSFC))
- IF(FRAC_GRID) THEN
+ ALLOCATE(LAKEFRAC(LENSFC))
+ IF(FRAC_GRID .OR. COUPLED) THEN
    PRINT*,'- RUNNING WITH FRACTIONAL GRID.'
-   CALL READ_LAT_LON_OROG(RLA,RLO,OROG,OROG_UF,TILE_NUM,IDIM,JDIM,LENSFC,LANDFRAC=LANDFRAC)
+   CALL READ_LAT_LON_OROG(RLA,RLO,OROG,OROG_UF,TILE_NUM,IDIM,JDIM,LENSFC,& 
+        LANDFRAC=LANDFRAC,LAKEFRAC=LAKEFRAC)
  ELSE
    CALL READ_LAT_LON_OROG(RLA,RLO,OROG,OROG_UF,TILE_NUM,IDIM,JDIM,LENSFC)
    LANDFRAC=-999.9
+   LAKEFRAC=-999.9
  ENDIF
 
  DO I = 1, IDIM
@@ -507,7 +519,15 @@
    ALLOCATE(NSST%Z_C(LENSFC))
    ALLOCATE(NSST%ZM(LENSFC))
    ALLOCATE(SLIFCS_FG(LENSFC))
+ ENDIF
+
+ IF (DO_NSST .OR. COUPLED) THEN
    ALLOCATE(SICFCS_FG(LENSFC))
+ ENDIF
+  
+ IF (COUPLED) THEN
+   ALLOCATE(SIHFCS_FG(LENSFC))
+   ALLOCATE(SITFCS_FG(LENSFC))
  ENDIF
 
 IF (DO_LANDINCR) THEN
@@ -591,8 +611,11 @@ ENDIF
    IF(NINT(SLIFCS(I)).EQ.2) AISFCS(I) = 1.
  ENDDO
 
- IF (DO_NSST) THEN
+ IF (DO_NSST .OR. COUPLED) THEN
    SICFCS_FG=SICFCS
+ ENDIF
+
+ IF (DO_NSST) THEN
    IF (.NOT. DO_SFCCYCLE ) THEN
      PRINT*
      PRINT*,"FIRST GUESS MASK ADJUSTED BY IFD RECORD"
@@ -604,11 +627,17 @@ ENDIF
      SLIFCS_FG = SLIFCS
    ENDIF
  ENDIF
+ 
+ IF (COUPLED) THEN
+   SIHFCS_FG=SIHFCS
+   SITFCS_FG=SITFCS
+ ENDIF
 
  ! CALCULATE MASK FOR LAND INCREMENTS
- IF (DO_LANDINCR)  &
+ IF (DO_LANDINCR) THEN
     CALL CALCULATE_LANDINC_MASK(SWEFCS, VETFCS, SOTFCS, &
                     LENSFC,VEG_TYPE_LANDICE,  LANDINC_MASK)
+ ENDIF
 
 !--------------------------------------------------------------------------------
 ! UPDATE SURFACE FIELDS.
@@ -656,13 +685,14 @@ ENDIF
 
    ENDIF SET_MASK
 
-   DO I=1,LENSFC
-     if(nint(slmask(i)) == 0) then
-       min_ice(i) = 0.15_KIND_io8
+! Follow logic in CCPP physics routine gcycle.F90
+   do i=1,lensfc
+     if(lakefrac(i) > 0.0) then
+       min_ice(i) = min_lakeice
      else
-       min_ice(i) = 0.0_KIND_io8
+       min_ice(i) = min_seaice
      endif
-   ENDDO
+   enddo
 
    SOCFCS=0 ! Soil color. Not used yet.
 
@@ -724,7 +754,8 @@ ENDIF
 !
      CALL ADJUST_NSST(RLA,RLO,SLIFCS,SLIFCS_FG,TSFFCS,SITFCS,SICFCS,SICFCS_FG,&
                     STCFCS,NSST,LENSFC,LSOIL,IDIM,JDIM,ZSEA1,ZSEA2, &
-                    tf_clm_tile,tf_trd_tile,sal_clm_tile,landfrac,frac_grid)
+                    tf_clm_tile,tf_trd_tile,sal_clm_tile,landfrac,frac_grid, &
+                    lakefrac,coupled)
    ENDIF
  ELSE
    IF (SFCANL_FILE /= "NULL") THEN
@@ -762,6 +793,27 @@ ENDIF
      
    ENDIF
  ENDIF
+
+ if (coupled) then
+   do i = 1, lensfc
+     if (lakefrac(i) == 0.0) then
+       sicfcs(i) = sicfcs_fg(i)
+       sihfcs(i) = sihfcs_fg(i)
+       sitfcs(i) = sitfcs_fg(i)
+     endif
+   enddo
+   deallocate(sihfcs_fg, sitfcs_fg)
+ endif
+
+   do i = 1, lensfc
+     if (nint(slifcs(i)) /= 1) then
+       if (sicfcs(i) > 0.0) then
+         slifcs(i) = 2.0
+       else
+         slifcs(i) = 0.0
+       endif
+     endif
+   enddo
 
 !--------------------------------------------------------------------------------
 ! READ IN AND APPLY LAND INCREMENTS
@@ -855,6 +907,7 @@ ENDIF
             !--------------------------------------------------------------------------------
             ! save interpolated increments
             !-------------------------------------------------------------------------------- 
+
             CALL WRITE_DATA(LENSFC,IDIM,JDIM,LSOIL,DO_NSST,.true.,NSST, &
                             STCINC=STCINC,SLCINC=SLCINC)
 
@@ -917,11 +970,17 @@ ENDIF
 ! WRITE OUT UPDATED SURFACE DATA ON THE CUBED-SPHERE TILE.
 !--------------------------------------------------------------------------------
 
- IF (LSM==LSM_NOAHMP) THEN
+ IF (DO_LANDINCR) THEN
 
    CALL WRITE_DATA(LENSFC,IDIM,JDIM,LSOIL,DO_NSST,.false.,NSST,VEGFCS=VEGFCS, &
-                   SLCFCS=SLCFCS,SMCFCS=SMCFCS,STCFCS=STCFCS,&
+                   SWEFCS=SWEFCS,SWDFCS=SNDFCS,SLCFCS=SLCFCS,SMCFCS=SMCFCS,STCFCS=STCFCS,&
                    SICFCS=SICFCS,SIHFCS=SIHFCS)
+
+ ELSEIF (LSM==LSM_NOAHMP .OR. COUPLED) THEN
+
+   CALL WRITE_DATA(LENSFC,IDIM,JDIM,LSOIL,DO_NSST,.false.,NSST,SLIFCS=SLIFCS,VEGFCS=VEGFCS, &
+                   SLCFCS=SLCFCS,SMCFCS=SMCFCS,STCFCS=STCFCS,&
+                   SICFCS=SICFCS,SIHFCS=SIHFCS,SITFCS=SITFCS)
 
  ELSEIF (LSM==LSM_NOAH) THEN
 
@@ -964,6 +1023,9 @@ ENDIF
    IF (ALLOCATED(TSFC_TILE)) DEALLOCATE(TSFC_TILE)
  ENDIF
 
+ IF(ALLOCATED(LANDFRAC)) DEALLOCATE(LANDFRAC)
+ IF(ALLOCATED(LAKEFRAC)) DEALLOCATE(LAKEFRAC)
+
  RETURN
 
  END SUBROUTINE SFCDRV
@@ -997,13 +1059,15 @@ ENDIF
  !! @param[in] sal_clm_tile Climatological salinity on the cubed-sphere tile.
  !! @param[in] LANDFRAC Land fraction
  !! @param[in] FRAC_GRID Process fractional grid when true.
+ !! @param[in] LAKEFRAC Lake fraction
+ !! @param[in] COUPLED When true, running coupled to an ocean/ice model.
  !!
  !! @author Xu Li, George Gayno
  SUBROUTINE ADJUST_NSST(RLA,RLO,SLMSK_TILE,SLMSK_FG_TILE,SKINT_TILE,&
                         SICET_TILE,sice_tile,sice_fg_tile,SOILT_TILE,NSST, &
                         LENSFC,LSOIL,IDIM,JDIM,ZSEA1,ZSEA2, &
                         tf_clm_tile,tf_trd_tile,sal_clm_tile,LANDFRAC, &
-                        FRAC_GRID)
+                        FRAC_GRID,LAKEFRAC,COUPLED)
 
  USE UTILS
  USE GDSWZD_MOD
@@ -1017,9 +1081,10 @@ ENDIF
 
  INTEGER, INTENT(IN)      :: LENSFC, LSOIL, IDIM, JDIM
 
- LOGICAL, INTENT(IN)      :: FRAC_GRID
+ LOGICAL, INTENT(IN)      :: FRAC_GRID, COUPLED
 
  REAL, INTENT(IN)         :: SLMSK_TILE(LENSFC), SLMSK_FG_TILE(LENSFC), LANDFRAC(LENSFC)
+ REAL, INTENT(IN)         :: LAKEFRAC(LENSFC)
  real, intent(in)         :: tf_clm_tile(lensfc),tf_trd_tile(lensfc),sal_clm_tile(lensfc)
  REAL, INTENT(IN)         :: ZSEA1, ZSEA2,sice_tile(lensfc),sice_fg_tile(lensfc)
  REAL, INTENT(IN)         :: RLA(LENSFC), RLO(LENSFC)
@@ -1177,6 +1242,13 @@ ENDIF
    MASK_FG_TILE=0
    WHERE(SICE_FG_TILE > 0.0) MASK_FG_TILE=2
    WHERE(LANDFRAC == 1.0) MASK_FG_TILE=1
+ ENDIF
+
+! Lake fraction is either zero or one. Only process NSST at lakes
+! when running in coupled mode.
+
+ IF(COUPLED)THEN
+   WHERE(LAKEFRAC == 0.0) MASK_TILE=1
  ENDIF
 
  IJ_LOOP : DO IJ = 1, LENSFC

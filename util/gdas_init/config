@@ -67,8 +67,6 @@ case "${machine}" in
     exit 1
     ;;
 esac
-
-OUTDIR="${EXTRACT_DIR}/output"
 echo $EXTRACT_DIR
 
 EXTRACT_DATA=no
@@ -77,9 +75,9 @@ RUN_CHGRES=yes
 
 ZERO_BIASCOEFF="YES"
 
-yy=2022
+yy=2024
 mm=06
-dd=09
+dd=30
 hh=18
 
 use_v16retro=no
@@ -97,6 +95,7 @@ CRES_ENKF=C96
 
 UFS_DIR=$PWD/../..
 
+OUTDIR="${EXTRACT_DIR}/output"
 #---------------------------------------------------------
 # Dont touch anything below here.
 #---------------------------------------------------------
@@ -107,12 +106,10 @@ EXEC_DIR=$UFS_DIR/exec
 if [ "$use_v16retro" = "yes" ]; then
 
   gfs_ver=v16retro
-  LEVS=128
 
 else
 
   gfs_ver=v16
-  LEVS=128
 
 # No ENKF data prior to 2012/05/21/00z
   if [ $yy$mm$dd$hh -lt 2012052100 ]; then
@@ -156,5 +153,4 @@ else
 fi
 
 export machine EXTRACT_DIR yy mm dd hh UFS_DIR OUTDIR CRES_HIRES CRES_ENKF
-export LEVS gfs_ver EXEC_DIR GDAS_INIT_DIR FIXshield ZERO_BIASCOEFF
-
+export LEVS gfs_ver use_v16retro EXEC_DIR GDAS_INIT_DIR FIXshield ZERO_BIASCOEFF

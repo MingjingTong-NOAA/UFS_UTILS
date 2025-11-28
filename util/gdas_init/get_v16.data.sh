@@ -16,7 +16,7 @@ set -x
 
 cd $EXTRACT_DIR
 
-workdir=$EXTRACT_DIR/logs/$yy$mm$dd$hh
+workdir=$EXTRACT_DIR/logs/$yy$mm$dd$hh/$bundle
 
 if [ ! -d $workdir ]; then
   mkdir -p $workdir
@@ -103,6 +103,9 @@ if [ "$bundle" = "gdas" ] || [ "$bundle" = "gfs" ]; then
     rc=$?
     [ $rc != 0 ] && exit $rc
     htar -xvf $directory/$file ./gdas.${yy}${mm}${dd}/${hh}/atmos/gdas.t${hh}z.radstat
+    rc=$?
+    [ $rc != 0 ] && exit $rc
+    chgrp rstprod ./gdas.${yy}${mm}${dd}/${hh}/atmos/gdas.t${hh}z.radstat
     rc=$?
     [ $rc != 0 ] && exit $rc
 

@@ -16,7 +16,7 @@ FIX_FV3=$UFS_DIR/fix
 FIX_ORO=${FIX_FV3}/orog
 FIX_AM=${FIX_FV3}/am
 
-WORKDIR=${WORKDIR:-$OUTDIR/work/work.${MEMBER}}
+WORKDIR=${WORKDIR:-$OUTDIR/work.${yy}${mm}${dd}${hh}.${MEMBER}}
 
 if [ ${MEMBER} == 'gdas' ] || [ ${MEMBER} == 'gfs' ] ; then
   CTAR=${CRES_HIRES}
@@ -79,19 +79,21 @@ if [ $rc != 0 ]; then
 fi
 
 if [[ ${ZERO_BIASCOEFF:-"NO"} == "YES" ]]; then
-  if [ ! -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias ]; then
+  if [[ -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias ]]; then
+    cp ${INPUT_DATA_DIR}/gdas.t${hh}z.abias ./abias
+    cp ${INPUT_DATA_DIR}/gdas.t${hh}z.abias_air ./abias_air
+    cp ${INPUT_DATA_DIR}/gdas.t${hh}z.abias_pc ./abias_pc
+  else
     echo "WARNING: bias coefficients not exist"
-  else 
-    ln -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias ./abias  
-    ln -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias_air ./abias_air
-    ln -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias_pc ./abias_pc
-    
-    $APRUN $UFS_DIR/../../exec/zero_biascoeff.x
-    
-    mv abias.zeroed gdas.t${hh}z.abias
-    mv abias_air.zeroed gdas.t${hh}z.abias_air
-    mv abias_pc.zeroed gdas.t${hh}z.abias_pc
+    exit 1
   fi
+
+  $APRUN $UFS_DIR/../../exec/zero_biascoeff.x
+
+  mkdir -p ${INPUT_DATA_DIR}/zeroed
+  cp abias.zeroed ${INPUT_DATA_DIR}/zeroed/gdas.t${hh}z.abias
+  cp abias_air.zeroed ${INPUT_DATA_DIR}/zeroed/gdas.t${hh}z.abias_air
+  cp abias_pc.zeroed ${INPUT_DATA_DIR}/zeroed/gdas.t${hh}z.abias_pc
 fi
 
 $GDAS_INIT_DIR/copy_coldstart_files.sh $MEMBER $OUTDIR $yy $mm $dd $hh $INPUT_DATA_DIR $CRES_HIRES ${ZERO_BIASCOEFF:-"NO"}

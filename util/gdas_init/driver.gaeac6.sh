@@ -17,7 +17,7 @@ module list
 # Needed for NDATE utility
 module load prod_util/2.1.1
 
-PROJECT_CODE=drsa-hurr1
+PROJECT_CODE=bil-coastal-gfdl
 QUEUE_dtn=hpss
 QUEUE=normal
 
@@ -27,8 +27,10 @@ source config
 
 if [ $EXTRACT_DATA == yes ]; then
 
-  rm -fr $EXTRACT_DIR
-  mkdir -p $EXTRACT_DIR
+  #rm -fr $EXTRACT_DIR
+  if [ ! -d $EXTRACT_DIR ]; then
+    mkdir -p $EXTRACT_DIR
+  fi
 
   MEM=6000M
   WALLT="2:00:00"
