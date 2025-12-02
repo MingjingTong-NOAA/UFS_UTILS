@@ -42,13 +42,13 @@ fi
 # latest orog version (20231027), need to use a previous version.
 #---------------------------------------------------------------------------
 
-if [ "$machine" = 'ursa' ] ; then
+if [[ "${machine,,}" == 'ursa' ]] ; then
   FIX_ORO_INPUT=/scratch3/NCEPDEV/global/role.glopara/fix/orog/20230615
-elif [ "$machine" = 'wcoss2' ] ; then
+elif [[ "${machine,,}" == 'wcoss2' ]] ; then
   FIX_ORO_INPUT=/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/orog/20230615
-elif [ "${machine,,}" = 'jet' ] ; then
+elif [[ "${machine,,}" == 'jet' ]] ; then
   FIX_ORO_INPUT=/lfs5/HFIP/hfv3gfs/glopara/FIX/fix/orog/20230615
-elif [ "$machine" = 'gaeac6' ] ; then
+elif [[ "${machine,,}" == 'gaeac6' ]]; then
   FIX_ORO_INPUT=/gpfs/f6/drsa-precip3/world-shared/role.glopara/fix/orog/20230615
 else
   set +x
