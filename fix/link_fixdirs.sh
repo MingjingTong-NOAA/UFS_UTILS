@@ -9,7 +9,7 @@ set -ex
 #               'nco' (copies data).
 #
 #  $machine - is the machine. Choices are:
-#             'wcoss2', 'ursa', 'jet', 'orion', 'hercules', 'gaeac6'
+#             'wcoss2', 'hera', 'ursa', 'jet', 'orion', 'hercules', 'gaeac6'
 
 RUN_ENVIR=${1}
 machine=${2}
@@ -17,7 +17,7 @@ machine=${2}
 if [ $# -lt 2 ]; then
     set +x
     echo '***ERROR*** must specify two arguements: (1) RUN_ENVIR, (2) machine'
-    echo ' Syntax: link_fv3gfs.sh ( nco | emc | shield ) ( wcoss2 |  ursa  | jet | orion | hercules | gaeac6 )'
+    echo ' Syntax: link_fv3gfs.sh ( nco | emc | shield ) ( wcoss2 |  hera | ursa  | jet | orion | hercules | gaeac6 )'
     exit 1
 fi
 
@@ -28,10 +28,10 @@ if [ $RUN_ENVIR != emc -a $RUN_ENVIR != nco -a $RUN_ENVIR != shield ]; then
     exit 1
 fi
 
-if [ $machine != wcoss2 -a $machine != ursa -a $machine != jet -a $machine != orion -a $machine != hercules -a $machine != gaeac6 ]; then
+if [ $machine != wcoss2 -a $machine != hera -a $machine != ursa -a $machine != jet -a $machine != orion -a $machine != hercules -a $machine != gaeac6 ]; then
     set +x
     echo '***ERROR*** unsupported machine'
-    echo 'Syntax: link_fv3gfs.sh ( nco | emc | shield ) ( wcoss2 | ursa | jet | orion | hercules | gaeac6 )'
+    echo 'Syntax: link_fv3gfs.sh ( nco | emc | shield ) ( wcoss2 | hera | ursa | jet | orion | hercules | gaeac6 )'
     exit 1
 fi
 
@@ -44,7 +44,7 @@ pwd=$(pwd -P)
 #------------------------------
 #--model fix fields
 #------------------------------
-if [ $machine = "ursa" ]; then
+if [ $machine = "ursa" ] || [ $machine = "hera" ]; then
     FIX_DIR="/scratch3/NCEPDEV/global/role.glopara/fix"
     FIX_shield="/scratch4/GFDL/gfdlscr/proj-shared/fix_shield"
 elif [ $machine = "jet" ]; then

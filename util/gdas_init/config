@@ -53,8 +53,8 @@
 
 echo ${machine}
 case "${machine}" in
-  "hera")  
-    EXTRACT_DIR="/scratch2/GFDL/gfdlscr/proj-shared/GFSICS/opr"
+  "hera" | "ursa")  
+    EXTRACT_DIR="/scratch4/GFDL/gfdlscr/proj-shared/GFSICS/opr"
     ;;  
   "gaeac5") 
     EXTRACT_DIR="/gpfs/f5/gfdl_w/proj-shared/${USER}/GFSICS/opr"
