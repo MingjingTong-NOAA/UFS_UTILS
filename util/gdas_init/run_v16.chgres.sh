@@ -78,7 +78,7 @@ if [ $rc != 0 ]; then
   exit $rc
 fi
 
-if [[ ${ZERO_BIASCOEFF:-"NO"} == "YES" ]]; then
+if [[ ${ZERO_BIASCOEFF:-"NO"} == "YES" && ${MEMBER} == "gdas" ]]; then
   if [[ -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias ]]; then
     cp ${INPUT_DATA_DIR}/gdas.t${hh}z.abias ./abias
     cp ${INPUT_DATA_DIR}/gdas.t${hh}z.abias_air ./abias_air
