@@ -14,7 +14,6 @@ function edit_namelist {
 	-e "s/EDITSFILE/$EDITSFILE/g" \
 	-e "s/RESNAME/$RESNAME/g" \
 	-e "s/DO_MASKEDIT/$MASKEDIT/g" \
-	-e "s/DO_DEBUG/$DEBUG/g" \
 	-e "s/DO_POSTWGTS/$DO_POSTWGTS/g" \
 	-e "s/ATMRESLIST/$ATMRESLIST/g"
 }
@@ -90,13 +89,14 @@ cd $RUNDIR
 RESNAME=${RESNAME:-$1}
 TEST_NAME=$RESNAME
 ATMLIST=${ATMLIST:-$2}
-DEBUG=.false.
 MASKEDIT=.false.
 DO_POSTWGTS=.true.
 MOSAICDIR_PATH=${MOSAICDIR_PATH:-$PATHTR/fix/orog}
 FIXDIR_PATH=${MOM6_FIXDIR}/${RESNAME}
 if [[ ${ATMLIST} -eq -1 ]]; then
    ATMRESLIST=12,24,48,96,192,384,768,1152,3072
+elif [[ ${ATMLIST} -eq -99 ]]; then
+    ATMRESLIST=
 else
    ATMRESLIST=${ATMLIST}
 fi
@@ -169,6 +169,22 @@ if [ $RESNAME = 025 ]; then
     fi
 fi
 
+if [ $RESNAME = 008 ]; then
+    NI=4500
+    NJ=3297
+    DO_POSTWGTS=.false.
+    TOPOGFILE=ocean_topog.nc
+    EDITSFILE=none
+    if [ $DO_POSTWGTS == .true. ]; then
+        #pre-generate SCRIP files for dst rectilinear grids using NCO
+        $APRUN -n 1 ncremap -g ${OUTDIR_PATH}/rect.9p00_SCRIP.nc -G latlon=20,40#lon_typ=grn_ctr#lat_typ=cap
+        $APRUN -n 1 ncremap -g ${OUTDIR_PATH}/rect.5p00_SCRIP.nc -G latlon=36,72#lon_typ=grn_ctr#lat_typ=cap
+        $APRUN -n 1 ncremap -g ${OUTDIR_PATH}/rect.1p00_SCRIP.nc -G latlon=181,360#lon_typ=grn_ctr#lat_typ=cap
+        $APRUN -n 1 ncremap -g ${OUTDIR_PATH}/rect.0p50_SCRIP.nc -G latlon=361,720#lon_typ=grn_ctr#lat_typ=cap
+        $APRUN -n 1 ncremap -g ${OUTDIR_PATH}/rect.0p25_SCRIP.nc -G latlon=721,1440#lon_typ=grn_ctr#lat_typ=cap
+        $APRUN -n 1 ncremap -g ${OUTDIR_PATH}/rect.0p125_SCRIP.nc -G latlon=1440,2880#lon_typ=grn_ctr#lat_typ=cap
+    fi
+fi
 edit_namelist < grid.nml.IN > grid.nml
 $APRUN ./cpld_gridgen
 
