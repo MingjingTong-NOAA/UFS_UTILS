@@ -26,13 +26,20 @@ date10=$2
 CTAR=$3
 SAVEDIR=$4
 
-FIX_FV3=$UFS_DIR/fix
-FIX_ORO=${FIX_FV3}/orog
-FIX_AM=${FIX_FV3}/am
+FIX_ORO=${FIX_ORO:-${FIXglobal}/orog}
+FIX_AM=${FIXglobal}/am
+FIX_SFC=${FIX_SFC:-"sfc"}
 
 WORKDIR=${WORKDIR:-${DATA}/work.${MEMBER}}
 MODE=${MODE:-"cycled"}
 CINP=${OPS_RES}
+oro_fix=${oro_fix:-".mx${OCNRES}_"}
+
+ORO_INP_DIR=${ORO_INP_DIR-"${CINP}"}
+ORO_INP=${ORO_INP:-"${CINP}${oro_fix}oro_data"}
+ORO_TAR_DIR=${ORO_TAR_DIR-"${CTAR}"}
+ORO_TAR=${ORO_TAR:-"${CTAR}${oro_fix}oro_data"}
+
 
 #---------------------------------------------------------------------------
 # Some gfs tarballs from the v16 retro parallels dont have 'atmos'
@@ -60,13 +67,13 @@ cd $WORKDIR
 cat << EOF > fort.41
 
 &config
- fix_dir_target_grid="${FIX_ORO}/${CTAR}/fix_sfc"
+ fix_dir_target_grid="${FIX_ORO}/${CTAR}/${FIX_SFC}"
  mosaic_file_input_grid="${FIX_ORO}/${CINP}/${CINP}_mosaic.nc"
  mosaic_file_target_grid="${FIX_ORO}/${CTAR}/${CTAR}_mosaic.nc"
- orog_dir_input_grid="${FIX_ORO}/${CINP}"
- orog_files_input_grid="${CINP}_oro_data.tile1.nc","${CINP}_oro_data.tile2.nc","${CINP}_oro_data.tile3.nc","${CINP}_oro_data.tile4.nc","${CINP}_oro_data.tile5.nc","${CINP}_oro_data.tile6.nc"
- orog_dir_target_grid="${FIX_ORO}/${CTAR}"
- orog_files_target_grid="${CTAR}_oro_data.tile1.nc","${CTAR}_oro_data.tile2.nc","${CTAR}_oro_data.tile3.nc","${CTAR}_oro_data.tile4.nc","${CTAR}_oro_data.tile5.nc","${CTAR}_oro_data.tile6.nc"
+ orog_dir_input_grid="${FIX_ORO}/${ORO_INP_DIR}"
+ orog_files_input_grid="${ORO_INP}.tile1.nc","${ORO_INP}.tile2.nc","${ORO_INP}.tile3.nc","${ORO_INP}.tile4.nc","${ORO_INP}.tile5.nc","${ORO_INP}.tile6.nc"
+ orog_dir_target_grid="${FIX_ORO}/${ORO_TAR_DIR}"
+ orog_files_target_grid="${ORO_TAR}.tile1.nc","${ORO_TAR}.tile2.nc","${ORO_TAR}.tile3.nc","${ORO_TAR}.tile4.nc","${ORO_TAR}.tile5.nc","${ORO_TAR}.tile6.nc"
  data_dir_input_grid="${INPUT_DATA_DIR}"
  sfc_files_input_grid="${SFCTILE1}","${SFCTILE2}","${SFCTILE3}","${SFCTILE4}","${SFCTILE5}","${SFCTILE6}"
  vcoord_file_target_grid="${vcoord_file_target_grid:-${FIX_AM}/global_hyblev.l${LEVS}.txt}"
@@ -80,7 +87,7 @@ cat << EOF > fort.41
 /
 EOF
 
-$APRUN ${CHGRESEXEC:-${UFS_DIR}/exec/chgres_cube_shield}
+$APRUN ${CHGRESEXEC:-${EXECglobal}/chgres_cube}
 rc=$?
 
 if [ $rc != 0 ]; then

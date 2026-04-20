@@ -5,11 +5,11 @@ set -ex
 #
 # This script takes two arguments:
 #
-#  $RUN_ENVIR - Either 'emc/shield' (creates links) or
+#  $RUN_ENVIR - Either 'emc' (creates links) or
 #               'nco' (copies data).
 #
 #  $machine - is the machine. Choices are:
-#             'wcoss2', 'hera', 'ursa', 'jet', 'orion', 'hercules', 'gaeac6'
+#             'wcoss2', 'ursa', 'jet', 'orion', 'hercules', 'gaeac6'
 
 RUN_ENVIR=${1}
 machine=${2}
@@ -17,21 +17,21 @@ machine=${2}
 if [ $# -lt 2 ]; then
     set +x
     echo '***ERROR*** must specify two arguements: (1) RUN_ENVIR, (2) machine'
-    echo ' Syntax: link_fv3gfs.sh ( nco | emc | shield ) ( wcoss2 |  hera | ursa  | jet | orion | hercules | gaeac6 )'
+    echo ' Syntax: link_fv3gfs.sh ( nco | emc ) ( wcoss2 |  ursa  | jet | orion | hercules | gaeac6 )'
     exit 1
 fi
 
-if [ $RUN_ENVIR != emc -a $RUN_ENVIR != nco -a $RUN_ENVIR != shield ]; then
+if [ $RUN_ENVIR != emc -a $RUN_ENVIR != nco ]; then
     set +x
     echo '***ERROR*** unsupported run environment'
-    echo ' Must choose either "nco" or "emc" or "shield".'
+    echo ' Must choose either "nco" or "emc".'
     exit 1
 fi
 
-if [ $machine != wcoss2 -a $machine != hera -a $machine != ursa -a $machine != jet -a $machine != orion -a $machine != hercules -a $machine != gaeac6 ]; then
+if [ $machine != wcoss2 -a $machine != ursa -a $machine != jet -a $machine != orion -a $machine != hercules -a $machine != gaeac6 ]; then
     set +x
     echo '***ERROR*** unsupported machine'
-    echo 'Syntax: link_fv3gfs.sh ( nco | emc | shield ) ( wcoss2 | hera | ursa | jet | orion | hercules | gaeac6 )'
+    echo 'Syntax: link_fv3gfs.sh ( nco | emc ) ( wcoss2 | ursa | jet | orion | hercules | gaeac6 )'
     exit 1
 fi
 
@@ -44,7 +44,7 @@ pwd=$(pwd -P)
 #------------------------------
 #--model fix fields
 #------------------------------
-if [ $machine = "ursa" ] || [ $machine = "hera" ]; then
+if [ $machine = "ursa" ]; then
     FIX_DIR="/scratch3/NCEPDEV/global/role.glopara/fix"
     FIX_shield="/scratch4/GFDL/gfdlscr/proj-shared/fix_shield"
 elif [ $machine = "jet" ]; then
@@ -59,26 +59,21 @@ elif [ $machine = "gaeac6" ]; then
 fi
 
 am_ver=${am_ver:-20220805}
-if [[ $RUN_ENVIR = emc  || $RUN_ENVIR = nco ]]; then
-  orog_ver=${orog_ver:-20240917}
-else
-  orog_ver=${orog_ver:-20220805}
-fi
+orog_ver=${orog_ver:-20240917}
+orog_shield_ver=${orog_shield_ver:-20220805}
 sfc_climo_ver=${sfc_climo_ver:-20230925}
 
-set -x
-
-for dir in am orog sfc_climo; do
+for dir in am orog orog_shield sfc_climo; do
     if [ -d $dir ]; then
       [[ $RUN_ENVIR = nco ]] && chmod -R 755 $dir
       rm -rf $dir
     fi
     fix_ver="${dir}_ver"
-    if [ -d $FIX_DIR/$dir/${!fix_ver} ]; then
-      $LINK $FIX_DIR/$dir/${!fix_ver} ${dir}
-    else
-      $LINK $FIX_shield/$dir/${!fix_ver} ${dir}
+    fix_dir=$FIX_DIR
+    if [ $dir == 'orog_shield' ]; then
+       fix_dir=$FIX_shield
     fi
+    $LINK ${fix_dir}/${dir}/${!fix_ver} ${dir}
 done
 
 exit 0

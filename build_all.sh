@@ -77,6 +77,6 @@ make install
 #ctest -I 4,5
 
 cd "${DIR_ROOT}/fix"
-./link_fixdirs.sh shield $target
+./link_fixdirs.sh emc $target
 
 exit 0

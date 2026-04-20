@@ -149,7 +149,6 @@
 #     DO_SOI_INC_GSI    Call routine to update soil states with gsi(gaussian) increment files
 #     DO_SNO_INC_JEDI   Call routine to update snow states with jedi increment files
 #     DO_SOI_INC_JEDI   Call routine to update soil states with jedi increment files
-#     USE_TREF      Use tref from sfcanl file
 #     PERTURB_TSFC  Add ensemble perturbation to GFS SST
 #     zsea1/zsea2   When running with NST model, this is the lower/upper bound
 #                   of depth of sea temperature.  In whole mm.
@@ -285,7 +284,6 @@ zsea1=${zsea1:-0}
 zsea2=${zsea2:-0}
 MAX_TASKS_CY=${MAX_TASKS_CY:-99999}
 FRAC_GRID=${FRAC_GRID:-.false.}
-USE_TREF=${USE_TREF:-.false.}
 PERTURB_TSFC=${PERTURB_TSFC:-.false.}
 
 FNGLAC=${FNGLAC:-${FIXam}/global_glacier.2x2.grb}
@@ -400,7 +398,7 @@ cat << EOF > fort.36
   deltsfc=$DELTSFC,ialb=$IALB,use_ufo=$use_ufo,donst="$DONST",
   do_sfccycle=$DO_SFCCYCLE,do_landincr=$DO_LANDINCR,isot=$ISOT,ivegsrc=$IVEGSRC,
   zsea1_mm=$zsea1,zsea2_mm=$zsea2,MAX_TASKS=$MAX_TASKS_CY,
-  frac_grid=$FRAC_GRID,use_tref=$USE_TREF,perturb_tsfc=$PERTURB_TSFC
+  frac_grid=$FRAC_GRID,perturb_tsfc=$PERTURB_TSFC
  /
 EOF
 

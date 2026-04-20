@@ -125,7 +125,7 @@ if [ $RUN_CHGRES == yes ]; then
 
   export APRUN=srun
   NODES=3
-  WALLT="0:15:00"
+  WALLT="0:35:00"
   export OMP_NUM_THREADS=1
   if [ $CRES_HIRES == 'C768' ] ; then
     NODES=5
@@ -164,7 +164,7 @@ if [ $RUN_CHGRES == yes ]; then
       ;;
   esac
 
-  if [ "$CDUMP" = "gdas" ]; then
+  if [ "$CDUMP" = "gdas" ] && [ ${RUN_CHGRES_ENS} == yes ]; then
 
     WALLT="0:15:00"
 

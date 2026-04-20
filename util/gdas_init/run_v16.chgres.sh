@@ -13,13 +13,13 @@ set -x
 MEMBER=$1
 
 FIX_FV3=$UFS_DIR/fix
-FIX_ORO=${FIX_FV3}/orog
 FIX_AM=${FIX_FV3}/am
 
 WORKDIR=${WORKDIR:-$OUTDIR/work.${yy}${mm}${dd}${hh}.${MEMBER}}
 
 if [ ${MEMBER} == 'gdas' ] || [ ${MEMBER} == 'gfs' ] ; then
   CTAR=${CRES_HIRES}
+  is_ensemble="NO"
 #---------------------------------------------------------------------------
 # Some gfs tarballs from the v16 retro parallels dont have 'atmos'
 # in their path.  Account for this.
@@ -40,6 +40,7 @@ else
   INPUT_DATA_DIR="${EXTRACT_DIR}/enkfgdas.${yy_d}${mm_d}${dd_d}/${hh_d}/atmos/mem${MEMBER}"
   ATMFILE="gdas.t${hh_d}z.atmf006.nc"
   SFCFILE="gdas.t${hh_d}z.sfcf006.nc"
+  is_ensemble="YES" 
 fi
 
 rm -fr $WORKDIR
@@ -48,10 +49,18 @@ cd $WORKDIR
 
 source $GDAS_INIT_DIR/set_fixed_files.sh
 
+if [ "${FRAC_ORO:-"NO"}" = "YES" ]; then
+  FIX_ORO=${FIX_FV3}/orog
+  FIX_SFC="sfc"
+else
+  FIX_ORO=${FIX_FV3}/orog_shield
+  FIX_SFC="fix_sfc"
+fi
+
 cat << EOF > fort.41
 
 &config
- fix_dir_target_grid="${FIX_ORO}/${ORO_DIR}/fix_sfc"
+ fix_dir_target_grid="${FIX_ORO}/${ORO_DIR}/${FIX_SFC}"
  mosaic_file_target_grid="${FIX_ORO}/${ORO_DIR}/${CTAR}_mosaic.nc"
  orog_dir_target_grid="${FIX_ORO}/${ORO_DIR}"
  orog_files_target_grid="${ORO_NAME}.tile1.nc","${ORO_NAME}.tile2.nc","${ORO_NAME}.tile3.nc","${ORO_NAME}.tile4.nc","${ORO_NAME}.tile5.nc","${ORO_NAME}.tile6.nc"
@@ -71,14 +80,20 @@ cat << EOF > fort.41
 /
 EOF
 
-$APRUN ${CHGRESEXEC:-${UFS_DIR}/exec/chgres_cube_shield}
+if [ "${FRAC_ORO:-"NO"}" ==  "YES" ]; then
+   $APRUN ${CHGRESEXEC:-${UFS_DIR}/exec/chgres_cube}
+else
+   $APRUN ${CHGRESEXEC:-${UFS_DIR}/exec/chgres_cube_shield}
+fi
 rc=$?
 
 if [ $rc != 0 ]; then
   exit $rc
 fi
 
-if [[ ${ZERO_BIASCOEFF:-"NO"} == "YES" && ${MEMBER} == "gdas" ]]; then
+COPYABIAS=${COPYABIAS:-${ZERO_BIASCOEFF-"NO"}}
+
+if [[ ${ZERO_BIASCOEFF:-"NO"} == "YES" && ${MEMBER} == "gdas" && ! -s ${INPUT_DATA_DIR}/zeroed/gdas.t${hh}z.abias ]]; then
   if [[ -s ${INPUT_DATA_DIR}/gdas.t${hh}z.abias ]]; then
     cp ${INPUT_DATA_DIR}/gdas.t${hh}z.abias ./abias
     cp ${INPUT_DATA_DIR}/gdas.t${hh}z.abias_air ./abias_air
@@ -96,7 +111,7 @@ if [[ ${ZERO_BIASCOEFF:-"NO"} == "YES" && ${MEMBER} == "gdas" ]]; then
   cp abias_pc.zeroed ${INPUT_DATA_DIR}/zeroed/gdas.t${hh}z.abias_pc
 fi
 
-$GDAS_INIT_DIR/copy_coldstart_files.sh $MEMBER $OUTDIR $yy $mm $dd $hh $INPUT_DATA_DIR $CRES_HIRES ${ZERO_BIASCOEFF:-"NO"}
+$GDAS_INIT_DIR/copy_coldstart_files.sh $MEMBER $OUTDIR $yy $mm $dd $hh $INPUT_DATA_DIR $CRES_HIRES $COPYABIAS
 
 rm -fr $WORKDIR
 

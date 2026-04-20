@@ -5,33 +5,38 @@
 # A default ocean resolution (OCNRES) based on CTAR is used.
 #---------------------------------------------------------------------------
 
-if [ "${FRAC_ORO:-"no"}" = "yes" ]; then
-  if [ ${CTAR} == 'C48' ] ; then
-    OCNRES='500'
-  elif [ ${CTAR} == 'C96' ]; then
-    OCNRES='500'
-  elif [ ${CTAR} == 'C192' ]; then
-    OCNRES='025'
-  elif [ ${CTAR} == 'C384' ]; then
-    OCNRES='025'
-  elif [ ${CTAR} == 'C768' ]; then
-    OCNRES='025'
-  elif [ ${CTAR} == 'C1152' ]; then
-    OCNRES='025'
-  elif [ ${CTAR} == 'C12' ]; then
-    OCNRES='900'
-  elif [ ${CTAR} == 'C18' ]; then
-    OCNRES='900'
-  elif [ ${CTAR} == 'C24' ]; then
-    OCNRES='900'
-  else
+if [ ${CTAR} == 'C48' ] ; then
+  OCNRES='500'
+elif [ ${CTAR} == 'C96' ]; then
+  OCNRES='500'
+  if [ ${is_ensemble} == "YES" ]; then
+    OCNRES='050'
+  fi
+elif [ ${CTAR} == 'C192' ]; then
+  OCNRES='050'
+  if [ ${is_ensemble} == "YES" ]; then
     OCNRES='025'
   fi
- 
-  ORO_DIR="${CTAR}"
-  ORO_NAME="${CTAR}.mx${OCNRES}_oro_data"
+elif [ ${CTAR} == 'C384' ]; then
+  OCNRES='025'
+elif [ ${CTAR} == 'C768' ]; then
+  OCNRES='025'
+elif [ ${CTAR} == 'C1152' ]; then
+  OCNRES='025'
+elif [ ${CTAR} == 'C12' ]; then
+  OCNRES='900'
+elif [ ${CTAR} == 'C18' ]; then
+  OCNRES='900'
+elif [ ${CTAR} == 'C24' ]; then
+  OCNRES='900'
 else
-  ORO_DIR="${CTAR}"
+  OCNRES='025'
+fi
+
+ORO_DIR="${CTAR}"
+ORO_NAME="${CTAR}.mx${OCNRES}_oro_data"
+
+if [ ${FRAC_ORO:-"NO"} == "NO" ]; then 
   ORO_NAME="${CTAR}_oro_data"
 fi
 
