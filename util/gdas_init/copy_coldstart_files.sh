@@ -40,7 +40,7 @@ copy_data()
       fi
     done
     
-    for radstat_file in ${INPUT_DATA_DIR}/*radstat; do
+    for radstat_file in ${INPUT_DATA_DIR}/*radstat*; do
       base_radstat_name=$(basename ${radstat_file})
       if [[ "${base_radstat_name}" == *".tar" ]]; then
         cp ${INPUT_DATA_DIR}/${base_radstat_name} $SAVEDIR_ANALYSIS/${base_radstat_name}
@@ -133,7 +133,7 @@ LEVS=$LEVS
 CRES_HIRES=$CRES_HIRES
 CRES_ENKF=$CRES_ENKF
 gfs_ver=$gfs_ver
-use_v16retro=${use_v16retro:-"no"}
+use_v17retro=${use_v17retro:-"no"}
 OUTDIR=$OUTDIR
 EXTRACT_DIR=$EXTRACT_DIR
 FIX_ORO_INPUT=$FIX_ORO_INPUT

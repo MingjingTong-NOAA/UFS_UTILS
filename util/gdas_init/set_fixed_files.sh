@@ -10,10 +10,10 @@ if [ ${CTAR} == 'C48' ] ; then
 elif [ ${CTAR} == 'C96' ]; then
   OCNRES='500'
   if [ ${is_ensemble} == "YES" ]; then
-    OCNRES='050'
+    OCNRES='100'
   fi
 elif [ ${CTAR} == 'C192' ]; then
-  OCNRES='050'
+  OCNRES='100'
   if [ ${is_ensemble} == "YES" ]; then
     OCNRES='025'
   fi

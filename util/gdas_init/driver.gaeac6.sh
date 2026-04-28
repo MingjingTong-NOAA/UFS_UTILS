@@ -110,6 +110,30 @@ if [ $EXTRACT_DATA == yes ]; then
         DEPEND="-d afterok:$DATAH:$DATA1:$DATA2:$DATA3:$DATA4:$DATA5:$DATA6:$DATA7:$DATA8"
       fi
       ;;
+    v17retro)
+      DATAH=$(sbatch --parsable --clusters=es --partition=dtn_f5_f6 --constraint=f6 --ntasks=1 --mem=$MEM -t $WALLT -A $PROJECT_CODE -q $QUEUE_dtn -J get_v17retro_{CDUMP} \
+       -o log.data.v17retro.${CDUMP} -e log.data.v17retro.${CDUMP} ./get_v17retro.data.sh ${CDUMP})
+      DEPEND="-d afterok:$DATAH"
+      if [ "$CDUMP" = "gdas" ] && [ ${RUN_CHGRES_ENS} == yes ] ; then
+        DATA1=$(sbatch --parsable --clusters=es --partition=dtn_f5_f6 --constraint=f6 --ntasks=1 --mem=$MEM -t $WALLT -A $PROJECT_CODE -q $QUEUE_dtn -J get_grp1 \
+         -o log.data.grp1 -e log.data.grp1 ./get_v17retro.data.sh grp1)
+        DATA2=$(sbatch --parsable --clusters=es --partition=dtn_f5_f6 --constraint=f6 --ntasks=1 --mem=$MEM -t $WALLT -A $PROJECT_CODE -q $QUEUE_dtn -J get_grp2 \
+         -o log.data.grp2 -e log.data.grp2 ./get_v17retro.data.sh grp2)
+        DATA3=$(sbatch --parsable --clusters=es --partition=dtn_f5_f6 --constraint=f6 --ntasks=1 --mem=$MEM -t $WALLT -A $PROJECT_CODE -q $QUEUE_dtn -J get_grp3 \
+         -o log.data.grp3 -e log.data.grp3 ./get_v17retro.data.sh grp3)
+        DATA4=$(sbatch --parsable --clusters=es --partition=dtn_f5_f6 --constraint=f6 --ntasks=1 --mem=$MEM -t $WALLT -A $PROJECT_CODE -q $QUEUE_dtn -J get_grp4 \
+         -o log.data.grp4 -e log.data.grp4 ./get_v17retro.data.sh grp4)
+        DATA5=$(sbatch --parsable --clusters=es --partition=dtn_f5_f6 --constraint=f6 --ntasks=1 --mem=$MEM -t $WALLT -A $PROJECT_CODE -q $QUEUE_dtn -J get_grp5 \
+         -o log.data.grp5 -e log.data.grp5 ./get_v17retro.data.sh grp5)
+        DATA6=$(sbatch --parsable --clusters=es --partition=dtn_f5_f6 --constraint=f6 --ntasks=1 --mem=$MEM -t $WALLT -A $PROJECT_CODE -q $QUEUE_dtn -J get_grp6 \
+         -o log.data.grp6 -e log.data.grp6 ./get_v17retro.data.sh grp6)
+        DATA7=$(sbatch --parsable --clusters=es --partition=dtn_f5_f6 --constraint=f6 --ntasks=1 --mem=$MEM -t $WALLT -A $PROJECT_CODE -q $QUEUE_dtn -J get_grp7 \
+         -o log.data.grp7 -e log.data.grp7 ./get_v17retro.data.sh grp7)
+        DATA8=$(sbatch --parsable --clusters=es --partition=dtn_f5_f6 --constraint=f6 --ntasks=1 --mem=$MEM -t $WALLT -A $PROJECT_CODE -q $QUEUE_dtn -J get_grp8 \
+         -o log.data.grp8 -e log.data.grp8 ./get_v17retro.data.sh grp8)
+        DEPEND="-d afterok:$DATAH:$DATA1:$DATA2:$DATA3:$DATA4:$DATA5:$DATA6:$DATA7:$DATA8"
+      fi
+      ;;
  esac
 
 else  # do not extract data.
@@ -161,6 +185,10 @@ if [ $RUN_CHGRES == yes ]; then
     v16)
       sbatch --parsable --ntasks-per-node=6 --clusters=c6 --partition=batch --nodes=${NODES} -t $WALLT -A $PROJECT_CODE -q $QUEUE -J chgres_${CDUMP} \
       -o log.${CDUMP} -e log.${CDUMP} ${DEPEND} run_v16.chgres.sh ${CDUMP}
+      ;;
+    v17retro)
+      sbatch --parsable --ntasks-per-node=6 --clusters=c6 --partition=batch --nodes=${NODES} -t $WALLT -A $PROJECT_CODE -q $QUEUE -J chgres_${CDUMP} \
+      -o log.${CDUMP} -e log.${CDUMP} ${DEPEND} run_v17retro.chgres.sh ${CDUMP}
       ;;
   esac
 
