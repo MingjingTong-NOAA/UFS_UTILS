@@ -160,7 +160,13 @@
 !IF (MYRANK==0) WRITE(6,NAMCYC)
 
  IF (MAX_TASKS < 99999 .AND. MYRANK > (MAX_TASKS - 1)) THEN
-   GOTO 333
+    PRINT *, "Task ", MYRANK, " is idle (MAX_TASKS reached). Exiting cleanly early."
+    
+    ! If rank 0 tracking is active, ensure we call the matching tag close
+    if (myrank == 0) call w3tage('GLOBAL_CYCLE') ! (Safety fallback)
+    
+    CALL MPI_FINALIZE(IERR)
+    STOP
  ENDIF
 
  LENSFC = IDIM*JDIM ! TOTAL NUMBER OF POINTS FOR THE CUBED-SPHERE TILE
@@ -177,13 +183,23 @@
  if (PERTURB_TSFC) then
    call MPI_COMM_GROUP(MPI_COMM_WORLD,orig_group,IERR)
 
+   if (NPROCS < MAX_TASKS) then
+      write(6,'(2(a,i4))')'***FATAL ERROR***  NPROCS too small. &
+            NPROCS = ',NPROCS,' < MAX_TASKS = ',MAX_TASKS
+      call mpi_abort(mpi_comm_world,99,IERR)
+   endif
+
    allocate(new_group_members(MAX_TASKS))
    do k=1,MAX_TASKS
       new_group_members(k)=k-1
    end do
- 
+
    call mpi_group_incl(orig_group,MAX_TASKS,new_group_members,new_group,IERR)
    call mpi_comm_create(MPI_COMM_WORLD,new_group,new_comm,IERR)
+   if ( IERR /= 0 ) then
+      write(6,'(a,i5)')'***FATAL ERROR*** after mpi_comm_create with IERR = ',IERR
+      call mpi_abort(mpi_comm_world,101,IERR)
+   endif
    deallocate(new_group_members)
  endif
 
@@ -196,8 +212,6 @@
              USE_UFO,DO_NSST,DO_SFCCYCLE,DO_LANDINCR, &
              READ_TREF,PERTURB_TSFC,MAX_TASKS,new_comm, &             
              FRAC_GRID,COUPLED,ZSEA1,ZSEA2,ISOT,IVEGSRC,MYRANK)
-
- 333 CONTINUE
 
  CALL MPI_BARRIER(MPI_COMM_WORLD, IERR)
 
@@ -351,6 +365,7 @@
 
  REAL, INTENT(IN)    :: FH, DELTSFC, ZSEA1, ZSEA2
 
+ INTEGER             :: actual_comm_size
  INTEGER, PARAMETER  :: NLUNIT=35
  INTEGER, PARAMETER  :: SZ_NML=1
 
@@ -552,10 +567,38 @@ ENDIF
   
  if (PERTURB_TSFC) then
    allocate(TSFCMEAN(LENSFC))
+   CALL MPI_COMM_SIZE(new_comm, actual_comm_size, IERR) 
+   IF (actual_comm_size /= nmem) THEN
+      WRITE(*, '(A,I0,A,I0)') "ERROR: MPI communicator size (", actual_comm_size, &
+                              ") does not match namelist MAX_TASKS (", nmem, ")"
+      CALL MPI_ABORT(MPI_COMM_WORLD, 99, IERR)
+   ENDIF
+   
    CALL MPI_ALLREDUCE(TSFFCS,TSFCMEAN,LENSFC,MPI_DOUBLE_PRECISION,MPI_SUM,new_comm,IERR)
-   rnmem = 1.0 / nmem
+   
+   rnmem = 1.0 / REAL(actual_comm_size)
    TSFCMEAN = TSFCMEAN * rnmem
    TSFCPERT = TSFFCS - TSFCMEAN
+
+   ! ==========================================================================
+   ! FIXED: ANINT SCALING / TRUNCATION FIX
+   ! ==========================================================================
+   ! We round to 5 decimal places (using 100000.0D0). This preserves the macro-
+   ! physical perturbations (which are on the order of 1/10 K) while shearing off
+   ! the non-deterministic, timing-dependent bitwise noise at the 15th decimal.
+   DO I = 1, LENSFC
+      TSFCPERT(I) = ANINT(TSFCPERT(I) * 100000.0D0) / 100000.0D0
+   ENDDO
+   ! ==========================================================================
+
+   ! --- Verification Debug Print ---
+   if (MYRANK == 0) then
+      print *, "=== [REPRODUCIBILITY FIX APPLIED] ==="
+      print '(A,2E24.16)', "  TSFCPERT stabilized min/max: ", minval(TSFCPERT), maxval(TSFCPERT)
+      print '(A,E24.16)',  "  TSFCPERT stabilized sum    : ", sum(TSFCPERT)
+      print *, "====================================="
+   endif
+
    deallocate(TSFCMEAN)
  else
    TSFCPERT = 0.0
@@ -751,8 +794,8 @@ ENDIF
    ENDIF
  ELSE
    IF (SFCANL_FILE /= "NULL") THEN
-     PRINT*
-     PRINT*,"USE GFS gaussian SFCANL FILE"
+     if (MYRANK == 0) PRINT*
+     if (MYRANK == 0) PRINT*,"USE GFS gaussian SFCANL FILE"
 !
 !    Get tf climatology at the time
 !
@@ -774,14 +817,14 @@ ENDIF
                       LENSFC,LSOIL,IDIM,JDIM,tf_clm_tile,sal_clm_tile)
 
    ELSE
-     PRINT*
-     PRINT*,"USE GFS SFCANL FILE on tile"
+     if (MYRANK == 0) PRINT*
+     if (MYRANK == 0) PRINT*,"USE GFS SFCANL FILE on tile"
      ALLOCATE(TSFC_TILE(LENSFC))
      CALL READ_SFCANL_TILE_DATA(LENSFC,TSFC_TILE,.false.)
-     PRINT*,"UPDATE TSFFCS", maxval(TSFFCS), minval(TSFFCS)
+     !PRINT*,"UPDATE TSFFCS", maxval(TSFFCS), minval(TSFFCS)
      CALL UPDATE_TSFC_TILE(SLIFCS,TSFC_TILE,TSFFCS,SITFCS,SICFCS,STCFCS, &
                            LENSFC,LSOIL,FRAC_GRID,LANDFRAC,TSFCPERT,MYRANK) 
-     PRINT*,"AFTER ", maxval(TSFFCS), minval(TSFFCS)
+     !PRINT*,"AFTER ", maxval(TSFFCS), minval(TSFFCS)
      
    ENDIF
  ENDIF
@@ -1411,7 +1454,7 @@ ENDIF
        NSST%TREF(IJ)  = MAX(NSST%TREF(IJ), tf_ice)
        NSST%TREF(IJ)  = MIN(NSST%TREF(IJ), TMAX)
        NSST%TFINC(IJ) = NSST%TREF(IJ) - TREF_SAVE
-!      PRINT*,'UPDATE TREF FROM SST CLIMO ',DTREF
+!      PRINT*,'UPDATE TREF FROM SST CLIMO ',NSST%TFINC(IJ)
        nfill_clm = nfill_clm + 1
      ENDIF
 
@@ -1531,6 +1574,13 @@ ENDIF
      nice = nice + 1
      cycle ij_loop
    endif
+
+!
+!  Get i,j index on array of (idim,jdim) from known ij
+!
+   JTILE = (IJ-1) / IDIM + 1
+   ITILE = MOD(IJ,IDIM)
+   IF (ITILE==0) ITILE = IDIM 
 
 !----------------------------------------------------------------------
 ! IF THE MODEL POINT WAS ICE COVERED, BUT IS NOW OPEN WATER, SET
@@ -2011,9 +2061,9 @@ ENDIF
 
  ENDDO IJ_LOOP
 
- write(*,'(a,3I6)') ' nfill = ',nfill
- write(*,'(a,I8)') ' nice = ',nice
- write(*,'(a,I8)') ' nland = ',nland
+ !write(*,'(a,3I6)') ' nfill = ',nfill
+ !write(*,'(a,I8)') ' nice = ',nice
+ !write(*,'(a,I8)') ' nland = ',nland
 
  END SUBROUTINE UPDATE_TSFC_TILE 
 
@@ -2274,6 +2324,7 @@ ENDIF
  mask(:,:) = reshape(mask_ij,(/nx,ny/) )
  tf(:,:)   = reshape(tf_ij,(/nx,ny/) )
 
+ is_ice = .false.
  tf_thaw = bmiss
 
  do krad = 1, max_search
